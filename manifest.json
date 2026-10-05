@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "crmne.moza",
+  "name": "MOZA",
+  "version": "0.1.0",
+  "author": "Carmine Paolino",
+  "license": "GPL-3.0-only",
+  "description": "MOZA settings powered by Boxflat, with native Omarchy controls and Rust rev lights powered by moza-rev.",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {"service": "MozaService.qml", "barWidget": "MozaPanel.qml"},
+  "barWidget": {"displayName": "MOZA", "description": "Wheelbase, wheels, pedals, presets and rev lights.", "category": "Gaming", "allowMultiple": false, "defaultSection": "right"}
+}

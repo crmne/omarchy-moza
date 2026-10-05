@@ -1,0 +1,21 @@
+name: Check
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    steps:
+      - name: Install build and Boxflat dependencies
+        run: pacman -Syu --noconfirm git rust base-devel python-gobject gtk4 libadwaita python-cairo python-pyserial python-yaml python-evdev python-psutil xorg-server-xvfb xorg-xauth
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Rust checks
+        run: |
+          cargo fmt --manifest-path rev/Cargo.toml --check
+          cargo test --manifest-path rev/Cargo.toml --locked
+          cargo clippy --manifest-path rev/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Boxflat adapter checks (no hardware)
+        run: GDK_BACKEND=x11 xvfb-run -a python -B -m unittest discover -s tests -v
+      - name: Verify bundled executable
+        run: sha256sum -c bin/omarchy-moza.sha256

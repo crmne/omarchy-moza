@@ -1,150 +1,113 @@
-# Boxflat
-Boxflat for Moza Racing. Control your Moza gear settings... and more!
+# MOZA for Omarchy
 
-<img alt="Wheelbase panel" src="screens/base.png">
+A native [Omarchy](https://omarchy.org) control panel for MOZA racing hardware.
+It combines [Boxflat](https://github.com/Lawstorant/boxflat)'s Python settings
+with fast Rust rev lights powered by [moza-rev](https://github.com/francisdb/moza-rev).
+The themed interface follows [OmaStats](https://github.com/crmne/omastats).
 
-<a href="https://flathub.org/apps/io.github.lawstorant.boxflat">
-    <img alt="Get it on Flathub" src="https://flathub.org/api/badge?locale=en"/>
-</a>
+## Features
 
-> [!NOTE]
-> [Sim Racing On Linux](https://simracingonlinux.com/)
+- Live RPM, configurable first/full thresholds (80–97% by default), LED count,
+  on/off, and a hardware sweep test. Changes apply without restarting.
+- Wheelbase rotation, force feedback, damping, friction, inertia, protection,
+  equalizer, force curve, soft limits, temperatures, and startup sound.
+- Modern and legacy wheel settings: paddles, encoders, joystick modes,
+  combinations, calibration, RPM/button colours, brightness, idle effects.
+- Pedals, dashboards, H-pattern and sequential shifters, handbrakes,
+  multifunction stalks and universal hubs, using Boxflat's existing controls.
+- Boxflat presets with device selection, default profiles and automatic
+  application when a game process starts. Preset dialogs stay inside the panel.
+- Generic HID detection fixes and Boxflat's device-specific input behaviour.
 
-> [!WARNING]
->For moza ffb driver, check out [universal-pidff](https://github.com/JacKeTUs/universal-pidff) by [@JacKeTUs](https://github.com/JacKeTUs)
->
->Not needed for 6.15+ as it was upstreamed and backported to 6.14.3, 6.13.12, 6.12.24.
+Unavailable controls are hidden or disabled using Boxflat's capability checks.
+This initial integration has been checked on an R12 with CS V2P (settings reads
+and physical LED sweep). Other pages share Boxflat's logic and have adapter
+coverage, but have not been tested on every hardware model. Firmware updates
+are outside Boxflat's supported feature set.
 
-> [!TIP]
-> For more information about the Moza Racing serial protocol see [Moza serial protocol](./moza-protocol.md) page
+## Install
 
-## Functionality
+Requires Omarchy's Quickshell plugin host and Python 3.12 or newer:
 
-| Device          | Completeness  | WIP |
-| :-------------: | :-----------: | :-- |
-| Home page       | 100%          | |
-| Base            | 100%          | |
-| Wheel           | 100%          | |
-| Pedals          | 100%          | |
-| Dashboard       | LED control   | Display Settings |
-| Universal Hub   | 100%          | |
-| H-Pattern       | 100%          | |
-| Sequential      | 100%          | |
-| Handbrake       | 100%          | |
-| E-Stop          | 100%          | |
-| Stalks          | 100%          | |
-| Other settings  | 100%          | |
-| Presets         | 100%          | |
-| Generic devices | Detection fix | |
-
-### Ideas
-- Telemetry ingestion through REST API/WebSockets
-- Cammus support
-- PXN Support
-- Simagic support
-- H-Pattern and Sequential settings available for arbitrary HID devices
-
-### Firmware upgrades
-There are some EEPROM functions available, but I need to do more testing to make sure I won't brick anything. For now, just use Pit House on Windows if you can, as FW upgrade support is not coming in the near future.
-
-## Compatibility
-Moza commands and their protocol is hardware agnostic, so any implemented feature should work with any wheelbase, wheel, pedal set etc. Some Wheel settings are device-specific (FSR Wheel dashboard for example)
-
-Wheel indicator blinking colors can't be read from the wheel. This is a limitation of the current firmware.
-
-Boxflat automatically detects is a device (shifter/pedals) needs a detection fix and creates a proper virutal device. This fixes game detection.
-
-> [!TIP]
-> Detection fix can be applied to any HID device as well (pedals, shifters, button boxes).
-
-# Installation
-## Flatpak (preferred method)
-Boxflat is available on **[Flathub](https://flathub.org/apps/io.github.lawstorant.boxflat)**
-
-### Udev rule installation for flatpak
-Copy this into terminal and execute with root permissions
-```bash
-sudo tee /etc/udev/rules.d/99-boxflat.rules <<< 'SUBSYSTEM=="tty", KERNEL=="ttyACM*", ATTRS{idVendor}=="346e", ACTION=="add", MODE="0666", TAG+="uaccess"'
+```sh
+omarchy pkg add python-gobject gtk4 libadwaita python-cairo python-pyserial python-yaml python-evdev python-psutil
+omarchy plugin add https://github.com/crmne/omarchy-moza.git --enable
 ```
 
-> [!IMPORTANT]
-> Unplug and plug in your deivce to trigger these new rules. Alternatively, you can reboot your system.
+The repository bundles the x86-64 Rust executable. For another architecture,
+build on that machine before enabling the plugin:
 
-## Arch Linux:
-https://aur.archlinux.org/packages/boxflat-git
-
-## Void Linux:
-`xbps-install -S boxflat`
-
-## Manual:
-This package depends on:
-- python >= 3.11
-- gtk4
-- libadwaita >= 1.6
-- cairo 1.18
-- gobject-introspection
-- pkexec (optional)
-
-Python dependencies:
-- pyyaml 6.0.2
-- psutil 6.1.0
-- pyserial 3.5
-- pycairo 1.27.0
-- PyGObject 3.50.0
-- evdev 1.7.1
-- trayer 0.1.1
-- dbus-python 1.4.0
-
-
-```bash
-# Just run:
-$ ./entrypoint.py --local
-# or
-$ python3 entrypoint.py --local
-```
-Installation:
-```bash
-# Run `install.sh` with root permissions.
-$ sudo ./install.sh
-# Application will be installed as `boxflat`
-$ boxflat
-```
-Removal:
-```bash
-# Run `install.sh remove` with root permissions.
-$ sudo ./install.sh remove
+```sh
+git clone https://github.com/crmne/omarchy-moza.git
+cd omarchy-moza
+make install
+omarchy plugin enable crmne.moza
 ```
 
-# Troubleshooting
-Below are some common problems and possible solutions:
-- `Error getting authority` when adding/updating the udev rules: make sure
-  the `dbus` service is running
-- Wheelbase does not appear, `dmesg` shows it connecting and getting assigned
-  an USB device, but it doesn't show up in boxflat -- check the `/dev` folder
-  with `ls /dev/ttyACM*`, if there is nothing you might be missing the
-  `CDC ACM` serial driver in the kernel
-- There is no FFB - if your torque is up to 100%, try turning it down to 95%
-  and turn the wheelbase off and on again
+Building needs Rust, a C toolchain, pkg-config and libudev development files
+(`rust`, `base-devel`, `systemd-libs` on Omarchy).
 
-# Some more screenshots
-<img alt="Home panel" src="screens/home.png">
+Close standalone Boxflat and stop standalone moza-rev first. They must not
+compete for device replies or UDP ports. Existing Boxflat udev rules are still
+required for serial/input access. Follow [Boxflat's device access instructions](https://github.com/Lawstorant/boxflat#installation)
+if needed. The plugin never installs system rules itself.
 
-<img alt="Wheel panel" src="screens/wheel.png">
+Click the car icon in the bar, or run:
 
-<img alt="Pedals panel" src="screens/pedals.png">
+```sh
+omarchy-shell crmne.moza show 'Rev lights'
+omarchy-shell crmne.moza show Base
+omarchy-shell crmne.moza status
+omarchy-shell crmne.moza configure 80 97
+```
 
-<img alt="H-Pattern shifter panel" src="screens/hpattern.png">
+## Games and settings
 
-<img alt="Sequential shifter panel" src="screens/sequential.png">
+The Rust engine listens for Automobilista 2 / Project CARS, Wreckfest 2,
+Codemasters legacy telemetry, BeamNG / OutGauge, Assetto Corsa and Forza.
+Game setup and default ports follow moza-rev. For AMS2, select **Project CARS 2**
+UDP and **frequency 1**. Linux can also need the broadcast-routing setup in
+[moza-rev's documentation](https://github.com/francisdb/moza-rev).
+Occupied telemetry ports are reported in the rev-light page.
 
-<img alt="Presets panel" src="screens/presets.png">
+Thresholds are percentages of redline. With a 6,800 RPM redline, 80–97% lights
+the first LED at 5,440 RPM and fills the bar at 6,596 RPM.
 
-## Supporters
-I give my heartfelt THANK YOU to every supporter who felt like this was worth a little to spare. Special thanks go to:
-- [@abowen](https://github.com/abowen)
-- [@SkaterPaul](https://github.com/SkaterPaul)
-- [@m4tx](https://github.com/m4tx)
-- [@TylerCode](https://github.com/TylerCode)
-- [@Petjes-je](https://github.com/Petjes-je)
+Settings and Boxflat-compatible presets live in `~/.config/omarchy-moza/`
+(or `$XDG_CONFIG_HOME/omarchy-moza/`). Existing standalone Boxflat settings
+are left alone. Copy chosen `.yml` presets to `~/.config/omarchy-moza/presets/`
+before starting the plugin to import them. Device settings are read from hardware.
 
-**© 2025 Tomasz Pakuła Using Arch BTW**
+The plugin runs while enabled, including with the panel closed. Boxflat's
+standalone tray, window and autostart options are replaced by the plugin host.
+Calibration, resets and profile loading retain Boxflat's behaviour. Colour
+fields accept `#RRGGBB`; modern-wheel colours also update the telemetry palette.
+
+```sh
+omarchy plugin disable crmne.moza
+omarchy plugin remove crmne.moza
+```
+
+Disabling releases the devices. Removal leaves settings and presets intact.
+
+## Development and attribution
+
+```sh
+make test
+make validate
+make build
+```
+
+See [architecture and coverage](docs/Architecture.md) and
+[binary provenance](docs/Binary-provenance.md).
+
+This repository retains Boxflat's source and history. The adapter uses its
+actual Python controls and callbacks, without showing GTK windows; QML supplies
+the visible interface. Rust owns the wheelbase connection and drives rev lights
+directly. Python settings requests share that connection.
+
+Boxflat is by Tomasz Pakuła and contributors (GPL-3.0). This integration uses
+the same license. moza-rev is by Francis De Brabandere and contributors (MIT;
+[notice](docs/moza-rev-LICENSE)). The grouped card component comes from Carmine
+Paolino's OmaStats (MIT; [notice](docs/OmaStats-LICENSE)). Neither this project
+nor Boxflat is affiliated with MOZA Racing.
