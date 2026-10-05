@@ -50,17 +50,27 @@ are outside Boxflat's supported feature set.
 Requires Omarchy's Quickshell plugin host and Python 3.12 or newer:
 
 ```sh
-omarchy pkg add python-gobject gtk4 libadwaita python-cairo python-pyserial python-yaml python-evdev python-psutil
 omarchy plugin add https://github.com/crmne/omarchy-moza.git --enable
 ```
 
-The repository bundles the x86-64 Rust executable. For another architecture,
-build on that machine before enabling the plugin:
+On a fresh installation, open the steering-wheel icon and choose **Open setup
+terminal**. It installs only the missing Boxflat dependencies and device-access
+rules through an Omarchy terminal, which may ask for your password. The plugin
+starts automatically afterward. Reconnect your devices if rules were installed.
+Existing rules are preserved. You can retry interrupted setup from the panel.
+
+The required Arch packages are `python-gobject`, `gtk4`, `libadwaita`,
+`python-cairo`, `python-pyserial`, `python-yaml`, `python-evdev` and `python-psutil`.
+There is no pip environment, separate Boxflat checkout or Rust compiler needed
+for the standard x86-64 installation. [View the setup panel](screenshots/setup.png).
+
+The repository bundles a reproducibly built, attested x86-64 Rust executable.
+For another architecture, build on that machine before enabling the plugin:
 
 ```sh
 git clone https://github.com/crmne/omarchy-moza.git
 cd omarchy-moza
-make install
+make build install
 omarchy plugin enable crmne.moza
 ```
 
@@ -68,12 +78,12 @@ Building needs Rust, a C toolchain, pkg-config and libudev development files
 (`rust`, `base-devel`, `systemd-libs` on Omarchy).
 
 Close standalone Boxflat and stop standalone moza-rev first. They must not
-compete for device replies or UDP ports. Existing Boxflat udev rules are still
-required for serial/input access. Follow [Boxflat's device access instructions](https://github.com/Lawstorant/boxflat#installation)
-if needed. The plugin never installs system rules itself.
+compete for device replies or UDP ports. System packages and device rules are
+installed only when you choose setup; nothing privileged runs at startup.
 
 The steering-wheel icon appears when a wheelbase connects and disappears when
-it disconnects. The background service keeps watching for reconnection.
+it disconnects. It also appears when first-run setup is needed. The background
+service keeps watching for reconnection.
 Click the icon in the bar, or run:
 
 ```sh
@@ -123,6 +133,10 @@ make build
 See [architecture and coverage](docs/Architecture.md) and
 [binary provenance](docs/Binary-provenance.md). Screenshots can be reproduced
 with the [isolated capture host](docs/Screenshots.md).
+
+See [upstream tracking and repository history](docs/Upstreams.md) for source
+pins, verification and the Boxflat update command. Boxflat lives unmodified in
+`vendor/boxflat/`, while plugin adaptations live in `backend/`.
 
 This repository retains Boxflat's source and history. The adapter uses its
 actual Python controls and callbacks, without showing GTK windows; QML supplies

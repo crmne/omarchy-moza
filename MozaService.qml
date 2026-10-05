@@ -14,6 +14,8 @@ Item {
   property string error: ""
   property string message: ""
   property bool ready: false
+  property var setup: null
+  readonly property bool needsSetup: setup !== null
   property bool dialog: false
   property bool destroying: false
   property bool demo: false
@@ -40,8 +42,11 @@ Item {
     var data
     try { data = JSON.parse(line) } catch (e) { return }
     if (!data) return
+    if (data.setup !== undefined) { setup = data.setup; return }
     if (data.live !== undefined) liveValues = data.live
     if (!data.panels) return
+    var justInstalled = needsSetup
+    setup = null
     ready = true
     rev = data.rev || {}; config = data.config || config
     error = data.error || rev.error || ""; message = data.message || ""
@@ -62,6 +67,15 @@ Item {
     if (key !== layoutKey) { layoutKey = key; pages = layout }
     var pkey = JSON.stringify(data.panels)
     if (pkey !== panelsKey) { panelsKey = pkey; panels = data.panels }
+    if (justInstalled) selectPage(current, panelOpen)
+  }
+  function installDependencies() {
+    var path = Qt.resolvedUrl("backend/setup.py").toString().replace(/^file:\/\//, "")
+    var quoted = "'" + path.replace(/'/g, "'\\''") + "'"
+    installer.command = ["omarchy", "launch", "floating", "terminal", "with", "presentation",
+                         "/usr/bin/python3 -B -I " + quoted + " --install"]
+    instances.forEach(item => { if (item) item.close() })
+    Qt.callLater(function() { installer.startDetached() })
   }
   function show(name) {
     selectPage(name || current, true)
@@ -72,7 +86,7 @@ Item {
   }
   Process {
     id: backend
-    command: ["/usr/bin/python3", "-B", "-I", Qt.resolvedUrl("backend/bridge.py").toString().replace(/^file:\/\//, "")]
+    command: ["/usr/bin/python3", "-B", "-I", Qt.resolvedUrl("backend/setup.py").toString().replace(/^file:\/\//, "")]
     running: true
     stdinEnabled: true
     stdout: SplitParser { onRead: line => root.ingest(line) }
@@ -82,13 +96,14 @@ Item {
       if (!root.destroying) root.error = "MOZA backend stopped. Check dependencies and re-enable the plugin."
     }
   }
+  Process { id: installer }
   Component.onDestruction: {
     destroying = true
     if (backend.running) { send({op: "quit"}); backend.running = false }
   }
   IpcHandler {
     target: "crmne.moza"
-    function status(): string { return JSON.stringify({ready: root.ready, rev: root.rev, config: root.config, error: root.error}) }
+    function status(): string { return JSON.stringify({ready: root.ready, setup: root.setup, rev: root.rev, config: root.config, error: root.error}) }
     function show(page: string): void { root.show(page) }
     function hide(): void { root.instances.forEach(item => { if (item) item.close() }) }
     function configure(start: int, full: int): void { root.send({op: "rev", config: Object.assign({}, root.config, {start: start, full: full})}) }

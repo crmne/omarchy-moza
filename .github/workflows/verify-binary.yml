@@ -1,0 +1,57 @@
+name: Verify bundled Rust binary
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    container:
+      image: archlinux@sha256:84cd9ef000b3cff245ec028e87965b84724f4bf1cc63fc2741ba927b88515ed6
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install the dated, signed build environment
+        run: bash tools/build-env.sh
+      - name: Verify original Boxflat source
+        run: python -B tools/boxflat-source.py --upstream
+      - name: Rebuild twice and compare with the bundled executable
+        run: bash tools/reproduce-binary.sh
+      - name: Write verification report
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          {
+            echo 'format=omarchy-moza-binary-provenance-v1'
+            echo "source_commit=$(git rev-parse HEAD)"
+            echo 'builder_image=archlinux@sha256:84cd9ef000b3cff245ec028e87965b84724f4bf1cc63fc2741ba927b88515ed6'
+            echo 'source_date_epoch=1788307200'
+            echo 'verified_reproducible_builds=2'
+            echo 'verified_bundled_binary=true'
+            sha256sum bin/omarchy-moza rev/Cargo.lock vendor/boxflat.lock.json
+            pacman -Q rust gcc gcc-libs binutils glibc git python pkgconf systemd-libs
+            rustc --version --verbose
+          } > binary-provenance.txt
+      - name: Attest verified binary and report
+        if: github.repository == 'crmne/omarchy-moza' && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: |
+            bin/omarchy-moza
+            binary-provenance.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: binary-provenance-${{ github.sha }}
+          path: binary-provenance.txt
+          if-no-files-found: error

@@ -12,7 +12,7 @@ Panel {
   property int pageIndex: 0
   readonly property string current: service ? service.current : "Rev lights"
   readonly property var page: service && service.pages.length ? service.pages[Math.min(pageIndex, service.pages.length - 1)] : ({groups: []})
-  visible: !!service && !!service.rev.connected
+  visible: !!service && (service.needsSetup || !!service.rev.connected)
   onVisibleChanged: if (!visible) root.close()
   implicitWidth: icon.implicitWidth
   implicitHeight: icon.implicitHeight
@@ -28,7 +28,7 @@ Panel {
     bar: root.bar
     anchors.centerIn: parent
     text: "󰓔" // nf-md-steering
-    tooltipText: "MOZA · " + (root.service && root.service.rev.connected ? (root.service.rev.game || "Connected") : "Disconnected")
+    tooltipText: "MOZA · " + (root.service && root.service.needsSetup ? "Finish setup" : root.service && root.service.rev.connected ? (root.service.rev.game || "Connected") : "Disconnected")
     onPressed: button => { if (button === Qt.LeftButton) root.toggle() }
   }
   KeyboardPanel {
@@ -47,11 +47,12 @@ Panel {
         width: parent.width
         spacing: Style.space(12)
         UI.Label { text: "MOZA"; font.pixelSize: Style.space(22); font.bold: true }
-        UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.rev.connected ? "●  Connected" : "○  Disconnected"; color: Color.accent; font.pixelSize: Style.font.bodySmall }
+        UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.needsSetup ? "Setup required" : root.service && root.service.rev.connected ? "●  Connected" : "○  Disconnected"; color: Color.accent; font.pixelSize: Style.font.bodySmall }
       }
       UI.Label { id: subtitle; anchors.top: heading.bottom; anchors.topMargin: Style.space(4); text: "Boxflat settings · moza-rev telemetry"; font.pixelSize: Style.font.caption; opacity: 0.5 }
       Controls.ScrollView {
         id: nav
+        visible: !root.service || !root.service.needsSetup
         anchors.top: subtitle.bottom; anchors.topMargin: Style.space(20)
         anchors.left: parent.left; anchors.bottom: parent.bottom
         width: Style.space(166); clip: true
@@ -76,23 +77,23 @@ Panel {
       }
       Column {
         id: mainHeader
-        anchors.top: nav.top; anchors.left: nav.right; anchors.leftMargin: Style.space(20); anchors.right: parent.right
+        anchors.top: nav.top; anchors.left: root.service && root.service.needsSetup ? parent.left : nav.right; anchors.leftMargin: root.service && root.service.needsSetup ? 0 : Style.space(20); anchors.right: parent.right
         spacing: Style.space(10)
         Row {
           spacing: Style.space(8)
           Button { visible: !!root.service && root.service.dialog; text: "Back"; bordered: true; focusable: true; onClicked: root.service.send({op: "back"}) }
-          UI.Label { text: root.current; font.pixelSize: Style.font.subtitle; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
+          UI.Label { text: root.service && root.service.needsSetup ? "Finish setup" : root.current; font.pixelSize: Style.font.subtitle; font.bold: true; anchors.verticalCenter: parent.verticalCenter }
         }
         UI.Label {
           width: parent.width
           text: !root.service || !root.service.ready ? (root.service && root.service.error ? root.service.error : "Starting MOZA…") : root.service.error || root.service.message
-          visible: text !== ""
+          visible: text !== "" && (!root.service || !root.service.needsSetup)
           color: root.service && root.service.error ? Color.urgent : Color.accent
           font.pixelSize: Style.font.bodySmall
         }
         Flow {
           width: parent.width; spacing: Style.space(4)
-          visible: !!root.service && root.service.pages.length > 1 && root.current !== "Rev lights"
+          visible: !!root.service && !root.service.needsSetup && root.service.pages.length > 1 && root.current !== "Rev lights"
           Repeater {
             model: root.service ? root.service.pages : []
             Button { required property var modelData; required property int index; text: modelData.title; selected: root.pageIndex === index; focusable: true; fontSize: Style.font.bodySmall; onClicked: {root.pageIndex = index; scroll.contentItem.contentY = 0} }
@@ -108,9 +109,25 @@ Panel {
         Column {
           width: scroll.availableWidth
           spacing: Style.space(14)
-          Loader { width: parent.width; visible: active; active: !!root.service && root.current === "Rev lights"; sourceComponent: UI.RevPage { service: root.service } }
+          UI.Card {
+            width: parent.width
+            visible: !!root.service && root.service.needsSetup
+            spacing: Style.space(18)
+            UI.Label { width: parent.width; text: "MOZA uses Boxflat for device settings. Install its dependencies once, then the plugin starts automatically." }
+            UI.Label {
+              width: parent.width; font.pixelSize: Style.font.bodySmall; opacity: 0.65
+              text: root.service && root.service.setup ? [root.service.setup.packages.join(", "), root.service.setup.rules ? "Boxflat device-access rules (reconnect your devices after setup)." : "", root.service.setup.binary ? "This architecture needs a local Rust build. Run make build in the plugin directory first." : ""].filter(value => value !== "").join("\n\n") : ""
+            }
+            Button {
+              text: "Open setup terminal"; bordered: true; focusable: true
+              enabled: !!root.service && !!root.service.setup && !root.service.setup.binary
+              onClicked: root.service.installDependencies()
+            }
+            UI.Label { width: parent.width; text: "The terminal may ask for your password. If setup is interrupted, reopen it to retry."; font.pixelSize: Style.font.caption; opacity: 0.5 }
+          }
+          Loader { width: parent.width; visible: active; active: !!root.service && !root.service.needsSetup && root.current === "Rev lights"; sourceComponent: UI.RevPage { service: root.service } }
           Repeater {
-            model: root.current === "Rev lights" ? [] : root.page.groups || []
+            model: (root.service && root.service.needsSetup) || root.current === "Rev lights" ? [] : root.page.groups || []
             UI.Card {
               id: groupCard
               required property var modelData

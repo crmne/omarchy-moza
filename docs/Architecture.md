@@ -1,6 +1,9 @@
 # Architecture and coverage
 
-MozaService.qml owns one Python bridge per shell. Every monitor's MozaPanel.qml
+MozaService.qml starts a standard-library-only setup launcher, which checks
+dependencies before replacing itself with one Python bridge per shell.
+Missing dependencies appear in a native setup panel; installation runs only
+after a button click in a visible Omarchy terminal. Every monitor's MozaPanel.qml
 shares it. The bridge constructs Boxflat's original panel objects without
 presenting GTK windows. backend/model.py exports the actual controls, ranges,
 options and availability, invoking the original callbacks for edits. Separate
@@ -39,3 +42,5 @@ Boxflat baseline: d14ed0ed84ee2205d41df0f595af5f1709db7831.
 The pinned moza-rev revision includes the modern-wheel initialization submitted
 upstream in PR #14. RPM mapping follows the threshold work in PR #15. These
 pins can move to upstream once the changes are accepted.
+
+The unmodified Boxflat snapshot is in `vendor/boxflat/`; see [upstream tracking](Upstreams.md).

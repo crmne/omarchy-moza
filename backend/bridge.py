@@ -17,6 +17,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+BOXFLAT = ROOT / "vendor/boxflat"
+sys.path.insert(0, str(BOXFLAT))
 os.environ["BOXFLAT_FLATPAK_EDITION"] = "false"
 OUT = sys.stdout
 sys.stdout = sys.stderr  # Boxflat diagnostic prints must not enter the JSON stream.
@@ -113,7 +115,7 @@ class Bridge:
         saved = self.settings.read_setting("rev")
         if self.valid_rev(saved): self.rev_config = saved
         self.rev = Rev(self.rev_config, demo)
-        self.cm = connection_manager.MozaConnectionManager(str(ROOT/"data/serial.yml"), demo)
+        self.cm = connection_manager.MozaConnectionManager(str(BOXFLAT/"data/serial.yml"), demo)
         self.palette = {}
         self.rev.on_connect = self.palette.clear
         for index in range(10):
@@ -163,7 +165,7 @@ class Bridge:
         p["Presets"] = PresetSettings(noop, self.cm, self.settings, p["H-Pattern Shifter"], p["Multifunction Stalks"])
         p["Presets"].set_application(self)
         p["Generic Devices"] = GenericSettings(noop, self.settings)
-        p["Other"] = OtherSettings(noop, self.cm, self.hid, self.settings, "Omarchy", self, str(ROOT/"data"))
+        p["Other"] = OtherSettings(noop, self.cm, self.hid, self.settings, "Omarchy", self, str(BOXFLAT/"data"))
         p["Other"].subscribe("brake-calibration-enabled", p["Pedals"].set_brake_calibration_active)
         p["Pedals"].set_brake_calibration_active(p["Other"].get_brake_valibration_enabled())
         for name, panel in p.items():

@@ -133,6 +133,14 @@ def main():
                 shown = json.loads(call("connection", "true"))
                 assert not hidden["visible"] and not hidden["open"] and hidden["ready"], hidden
                 assert shown["visible"] and shown["ready"], shown
+                setup_state = json.loads(call("setupPreview"))
+                assert setup_state["visible"] and setup_state["open"] and setup_state["setup"], setup_state
+                time.sleep(.7)
+                setup_path = output / "setup.png"
+                setup_path.unlink(missing_ok=True)
+                assert call("grab", str(setup_path)) == "ok"
+                wait_for(lambda: complete_png(setup_path), "setup panel")
+                call("displayPage", "Rev lights")
                 call("preparePreview")
                 time.sleep(.7)
                 preview = ROOT / "preview.png"

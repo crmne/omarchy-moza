@@ -96,6 +96,12 @@ ShellRoot {
       service.item.rev = Object.assign({}, service.item.rev, {connected: connected})
       return JSON.stringify({visible: panel.item.visible, open: panel.item.opened, ready: service.item.ready})
     }
+    function setupPreview(): string {
+      service.item.rev = {connected: false}
+      service.item.ingest(JSON.stringify({setup: {packages: ["python-gobject", "gtk4", "libadwaita", "python-cairo", "python-pyserial", "python-yaml", "python-evdev", "python-psutil"], rules: true, binary: false}}))
+      panel.item.open()
+      return JSON.stringify({visible: panel.item.visible, open: panel.item.opened, setup: service.item.needsSetup})
+    }
     function grab(path: string): string {
       var c = host.card()
       if (!c) return "No panel card"

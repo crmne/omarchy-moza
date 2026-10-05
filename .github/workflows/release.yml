@@ -1,0 +1,48 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  check:
+    uses: ./.github/workflows/check.yml
+  verify:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/verify-binary.yml
+  release:
+    needs: [check, verify]
+    if: github.repository == 'crmne/omarchy-moza'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      attestations: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: binary-provenance-${{ github.sha }}
+      - name: Verify release version and attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version manifest.json)
+          test "$GITHUB_REF_NAME" = "v$version"
+          test -s "docs/releases/$version.md"
+          gh attestation verify bin/omarchy-moza --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
+          gh attestation verify binary-provenance.txt --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
+      - name: Publish plugin and provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(jq -r .version manifest.json)
+          archive="omarchy-moza-$version.tar.gz"
+          git archive --format=tar.gz --prefix=omarchy-moza/ HEAD > "$archive"
+          sha256sum "$archive" > "$archive.sha256"
+          gh release create "$GITHUB_REF_NAME" "$archive" "$archive.sha256" bin/omarchy-moza bin/omarchy-moza.sha256 binary-provenance.txt \
+            --verify-tag --title "MOZA for Omarchy $version" --notes-file "docs/releases/$version.md"
