@@ -5,6 +5,24 @@ It combines [Boxflat](https://github.com/Lawstorant/boxflat)'s Python settings
 with fast Rust rev lights powered by [moza-rev](https://github.com/francisdb/moza-rev).
 The themed interface follows [OmaStats](https://github.com/crmne/omastats).
 
+![MOZA rev lights and pedal inputs in Omarchy](preview.png)
+
+The preview combines real plugin panels over Omarchy's Ristretto wallpaper,
+in the same style as [hyprmoncfg](https://github.com/crmne/omarchy-hyprmoncfg).
+Screenshots use simulated RPM and input values in an isolated capture host.
+They do not represent a live game or additional hardware testing.
+
+<details>
+<summary>Rev lights, live inputs and wheelbase settings</summary>
+
+![Rev lights at a simulated 6,420 RPM](screenshots/rev-lights.png)
+
+![Simulated steering and pedal inputs](screenshots/inputs.png)
+
+![Wheelbase settings](screenshots/base.png)
+
+</details>
+
 ## Features
 
 - Live RPM, configurable first/full thresholds (80–97% by default), LED count,
@@ -18,6 +36,8 @@ The themed interface follows [OmaStats](https://github.com/crmne/omastats).
 - Boxflat presets with device selection, default profiles and automatic
   application when a game process starts. Preset dialogs stay inside the panel.
 - Generic HID detection fixes and Boxflat's device-specific input behaviour.
+- Wheel and pedal indicators update at up to 120 Hz while the panel is open.
+- A steering-wheel bar icon that appears only while the wheelbase is connected.
 
 Unavailable controls are hidden or disabled using Boxflat's capability checks.
 This initial integration has been checked on an R12 with CS V2P (settings reads
@@ -52,7 +72,9 @@ compete for device replies or UDP ports. Existing Boxflat udev rules are still
 required for serial/input access. Follow [Boxflat's device access instructions](https://github.com/Lawstorant/boxflat#installation)
 if needed. The plugin never installs system rules itself.
 
-Click the steering-wheel icon in the bar, or run:
+The steering-wheel icon appears when a wheelbase connects and disappears when
+it disconnects. The background service keeps watching for reconnection.
+Click the icon in the bar, or run:
 
 ```sh
 omarchy-shell crmne.moza show 'Rev lights'
@@ -99,7 +121,8 @@ make build
 ```
 
 See [architecture and coverage](docs/Architecture.md) and
-[binary provenance](docs/Binary-provenance.md).
+[binary provenance](docs/Binary-provenance.md). Screenshots can be reproduced
+with the [isolated capture host](docs/Screenshots.md).
 
 This repository retains Boxflat's source and history. The adapter uses its
 actual Python controls and callbacks, without showing GTK windows; QML supplies

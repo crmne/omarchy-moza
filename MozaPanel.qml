@@ -12,6 +12,8 @@ Panel {
   property int pageIndex: 0
   readonly property string current: service ? service.current : "Rev lights"
   readonly property var page: service && service.pages.length ? service.pages[Math.min(pageIndex, service.pages.length - 1)] : ({groups: []})
+  visible: !!service && !!service.rev.connected
+  onVisibleChanged: if (!visible) root.close()
   implicitWidth: icon.implicitWidth
   implicitHeight: icon.implicitHeight
   function register() { if (service && service.instances.indexOf(root) === -1) service.instances = service.instances.concat([root]) }
@@ -26,7 +28,6 @@ Panel {
     bar: root.bar
     anchors.centerIn: parent
     text: "󰓔" // nf-md-steering
-    dimmed: !root.service || !root.service.rev.connected
     tooltipText: "MOZA · " + (root.service && root.service.rev.connected ? (root.service.rev.game || "Connected") : "Disconnected")
     onPressed: button => { if (button === Qt.LeftButton) root.toggle() }
   }
