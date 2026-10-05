@@ -5,6 +5,10 @@ shares it. The bridge constructs Boxflat's original panel objects without
 presenting GTK windows. backend/model.py exports the actual controls, ranges,
 options and availability, invoking the original callbacks for edits. Separate
 layout and state maps avoid rebuilding controls during live updates.
+Wheel/pedal input readings use cached getters on an 8 ms timer while the panel
+is open, keeping up with Boxflat's 120 Hz HID sampler. Only changed readings
+cross to QML; settings/layout scans remain at 10 Hz (1 Hz when closed), and
+the fast timer stops when the panel closes.
 
 The Rust executable in rev/ reuses moza-rev's listeners and protocol client.
 Packets, RPM mapping, heartbeat, reconnection and LED writes remain in Rust.

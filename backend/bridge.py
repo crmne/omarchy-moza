@@ -100,6 +100,8 @@ class Bridge:
         self.error = ""
         self.message = ""
         self.last_document = ""
+        self.last_live = {}
+        self.live_timer = None
         self.last_publish = 0.0
         self.rev_config = dict(start=80, full=97, leds=10, enabled=True)
         config_path = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home()/".config"))) / "omarchy-moza"
@@ -205,15 +207,40 @@ class Bridge:
                     pages=pages, dialog=bool(self.dialog), rev=self.rev.status,
                     config=self.rev_config, error=self.error, message=self.message, demo=self.demo)
 
-    def publish(self):
+    def publish_live(self):
+        try:
+            values = self.model.live_values()
+            if values != self.last_live:
+                OUT.write(json.dumps(dict(live=values), separators=(",", ":")) + "\n")
+                OUT.flush()
+                self.last_live = values
+        except BrokenPipeError: self.loop.quit(); return False
+        return True
+
+    def update_live_timer(self):
+        # Boxflat already samples HID inputs at 120 Hz. Only read the active
+        # page's cached getters here, leaving GTK traversal/settings at 10 Hz.
+        if self.opened and self.live_timer is None:
+            self.live_timer = GLib.timeout_add(8, self.publish_live)
+        elif not self.opened and self.live_timer is not None:
+            GLib.source_remove(self.live_timer)
+            self.live_timer = None
+
+    def publish(self, force=False):
         now = time.monotonic()
-        if not self.opened and now - self.last_publish < 1: return True
+        if not force and not self.opened and now - self.last_publish < 1: return True
         self.last_publish = now
         try:
             doc = self.document()
+            live = self.model.track_live(doc["pages"])
             text = json.dumps(doc, separators=(",", ":"))
             if text != self.last_document:
-                OUT.write(text + "\n"); OUT.flush(); self.last_document = text
+                OUT.write(json.dumps(dict(doc, live=live), separators=(",", ":")) + "\n")
+                OUT.flush()
+                self.last_document = text
+                self.last_live = live
+            else:
+                self.publish_live()
         except BrokenPipeError: self.loop.quit(); return False
         except Exception as e:
             import traceback
@@ -244,7 +271,8 @@ class Bridge:
             elif op == "quit": self.loop.quit()
             else: raise ValueError("Unknown request")
         except Exception as e: self.error = str(e)
-        self.publish()
+        self.publish(force=True)
+        self.update_live_timer()
         return False
 
     def run(self):
@@ -262,6 +290,7 @@ class Bridge:
         self.publish()
         try: self.loop.run()
         finally:
+            if self.live_timer is not None: GLib.source_remove(self.live_timer)
             self.cm.shutdown()
             for device in list(self.cm._serial_devices.values()): device.serial_handler.stop()
             for panel in self.panels.values(): panel.shutdown()

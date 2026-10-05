@@ -8,6 +8,7 @@ Column {
   property var service: null
   property var layout: ({id: "", children: []})
   readonly property var rowState: service ? service.rows[layout.id] || ({}) : ({})
+  readonly property var reading: rowState.live && service ? service.liveValues[layout.id] : rowState.value
   readonly property string kind: rowState.kind || "label"
   property bool expanded: false
   width: parent.width
@@ -116,9 +117,9 @@ Column {
     visible: root.kind === "level"
     width: parent.width; height: Style.space(6); radius: height / 2
     color: Util.alpha(Color.popups.text, 0.1)
-    Rectangle { width: parent.width * Math.max(0, Math.min(1, (root.rowState.value || 0) / (root.rowState.max || 1))); height: parent.height; radius: parent.radius; color: Color.accent }
+    Rectangle { width: parent.width * Math.max(0, Math.min(1, (root.reading || 0) / (root.rowState.max || 1))); height: parent.height; radius: parent.radius; color: Color.accent }
   }
-  Label { visible: root.kind === "label"; width: parent.width; text: String(root.rowState.value || ""); color: Color.accent }
+  Label { visible: root.kind === "label"; width: parent.width; text: String(root.reading === undefined ? "" : root.reading); color: Color.accent }
   Flow {
     width: parent.width
     spacing: Style.space(6)

@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
   id: root
   property var rows: ({})
+  property var liveValues: ({})
   property var groups: ({})
   property var pages: []
   property var panels: []
@@ -38,7 +39,9 @@ Item {
     if (line.length > 1048576) return
     var data
     try { data = JSON.parse(line) } catch (e) { return }
-    if (!data || !data.panels) return
+    if (!data) return
+    if (data.live !== undefined) liveValues = data.live
+    if (!data.panels) return
     ready = true
     rev = data.rev || {}; config = data.config || config
     error = data.error || rev.error || ""; message = data.message || ""

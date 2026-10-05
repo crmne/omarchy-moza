@@ -1,6 +1,9 @@
 import os
+import io
+import json
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from backend.bridge import Bridge
@@ -83,6 +86,52 @@ class BridgeTests(unittest.TestCase):
             bridge.sync_colour([9, 20, 30], 9)
             self.assertEqual(len(recorded), 2)
         finally: bridge.cm._handle_setting = original
+
+    def test_live_inputs_do_not_rebuild_settings(self):
+        bridge = self.bridge
+        output = io.StringIO()
+        with patch('backend.bridge.OUT', output):
+            try:
+                bridge.command(dict(op='focus', name='Home', opened=True))
+                document = json.loads(output.getvalue().splitlines()[-1])
+                rows = [r for p in document['pages'] for g in p['groups'] for r in g['rows']]
+                steering = next(r for r in rows if r['title'] == 'Steering position')
+                pedal = next(r for r in rows if r['title'] == 'Throttle input')
+                self.assertTrue(steering['live'])
+                self.assertNotIn('value', pedal)
+                bridge.model.objects[steering['id']]._label.set_label('12.3°')
+                bridge.model.objects[pedal['id']]._bar.set_value(32000)
+                output.seek(0); output.truncate()
+                with patch.object(bridge, 'document', side_effect=AssertionError('Fast samples must not scan settings')):
+                    bridge.publish_live()
+                    bridge.publish_live()  # Identical values produce no traffic.
+                frames = output.getvalue().splitlines()
+                self.assertEqual(len(frames), 1)
+                self.assertEqual(set(json.loads(frames[0])), {'live'})
+                live = json.loads(frames[0])['live']
+                self.assertEqual(live[steering['id']], '12.3°')
+                self.assertEqual(live[pedal['id']], 32000)
+                # The slower scan must not resend settings just because inputs moved.
+                bridge.publish(force=True)
+                self.assertEqual(len(output.getvalue().splitlines()), 1)
+            finally: bridge.command(dict(op='focus', name='Rev lights', opened=False))
+
+    def test_live_sampling_tracks_page_changes_and_closing(self):
+        bridge = self.bridge
+        with patch('backend.bridge.OUT', io.StringIO()):
+            try:
+                bridge.command(dict(op='focus', name='Home', opened=True))
+                home_ids = set(bridge.model.live_readers)
+                self.assertTrue(home_ids)
+                self.assertIsNotNone(bridge.live_timer)
+                bridge.command(dict(op='focus', name='Wheel', opened=True))
+                self.assertTrue(bridge.model.live_readers)
+                self.assertTrue(home_ids.isdisjoint(bridge.model.live_readers))
+                bridge.command(dict(op='focus', name='Wheel', opened=False))
+                self.assertIsNone(bridge.live_timer)
+                self.assertEqual(bridge.model.live_values(), {})
+                self.assertEqual(bridge.last_live, {})
+            finally: bridge.command(dict(op='focus', name='Rev lights', opened=False))
 
 
 if __name__ == '__main__': unittest.main()

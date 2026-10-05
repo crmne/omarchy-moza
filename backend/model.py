@@ -36,6 +36,7 @@ def plain(text):
 class Model:
     def __init__(self):
         self.objects = {}
+        self.live_readers = {}
 
     def key(self, widget):
         key = str(id(widget))
@@ -112,6 +113,28 @@ class Model:
             return [dict(title=pages.get_item(i).get_title(),
                          groups=self.groups(pages.get_item(i).get_child())) for i in range(pages.get_n_items())]
         return [dict(title="", groups=self.groups(panel.content))]
+
+    def track_live(self, pages):
+        """Separate input readings from settings; retain getters for fast samples."""
+        readers = {}
+        values = {}
+
+        def visit(row):
+            widget = self.objects[row["id"]]
+            if row["kind"] in ("level", "label") and isinstance(widget, (BoxflatLevelRow, BoxflatLabelRow)):
+                readers[row["id"]] = widget.get_value if isinstance(widget, BoxflatLevelRow) else lambda w=widget: plain(w.get_label())
+                values[row["id"]] = row.pop("value")
+                row["live"] = True
+            for child in row.get("rows", []): visit(child)
+
+        for page in pages:
+            for group in page["groups"]:
+                for row in group["rows"]: visit(row)
+        self.live_readers = readers
+        return values
+
+    def live_values(self):
+        return {key: read() for key, read in self.live_readers.items()}
 
     def act(self, key, action, value=None, index=0):
         widget = self.objects.get(str(key))
