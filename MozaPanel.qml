@@ -25,7 +25,7 @@ Panel {
     id: icon
     bar: root.bar
     anchors.centerIn: parent
-    text: "󰟐"
+    text: "󰓔" // nf-md-steering
     dimmed: !root.service || !root.service.rev.connected
     tooltipText: "MOZA · " + (root.service && root.service.rev.connected ? (root.service.rev.game || "Connected") : "Disconnected")
     onPressed: button => { if (button === Qt.LeftButton) root.toggle() }

@@ -52,7 +52,7 @@ compete for device replies or UDP ports. Existing Boxflat udev rules are still
 required for serial/input access. Follow [Boxflat's device access instructions](https://github.com/Lawstorant/boxflat#installation)
 if needed. The plugin never installs system rules itself.
 
-Click the car icon in the bar, or run:
+Click the steering-wheel icon in the bar, or run:
 
 ```sh
 omarchy-shell crmne.moza show 'Rev lights'
