@@ -62,7 +62,7 @@ Existing rules are preserved. You can retry interrupted setup from the panel.
 The required Arch packages are `python-gobject`, `gtk4`, `libadwaita`,
 `python-cairo`, `python-pyserial`, `python-yaml`, `python-evdev` and `python-psutil`.
 There is no pip environment, separate Boxflat checkout or Rust compiler needed
-for the standard x86-64 installation. [View the setup panel](screenshots/setup.png).
+for the standard x86-64 installation. [View the setup panel](screenshots/first-run.png).
 
 The repository bundles a reproducibly built, attested x86-64 Rust executable.
 For another architecture, build on that machine before enabling the plugin:

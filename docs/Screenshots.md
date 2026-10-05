@@ -42,5 +42,5 @@ The theme files and background are read from the installed Omarchy package;
 they are not vendored. The preview composition adds a dark overlay and soft
 shadows. No UI elements are painted over the captured controls.
 
-`setup.png` shows the real first-run panel with simulated missing dependencies.
+`first-run.png` shows the real first-run panel with simulated missing dependencies.
 The capture also verifies that setup remains reachable without a connected wheel.
