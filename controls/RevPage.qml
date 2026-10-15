@@ -36,14 +36,14 @@ Column {
     UI.Toggle { width: parent.width; label: "Rev lights"; description: "Respond to live game telemetry"; checked: root.config.enabled; foreground: Color.popups.text; onClicked: root.service.setRev("enabled", !checked) }
     Row {
       width: parent.width; spacing: Style.space(24)
-      UI.NumberField {
+      NumberKeyField {
         label: "First light (%)"; from: 0; to: root.config.full - 1; value: root.config.start
-        foreground: Color.popups.text; fieldWidth: Style.space(120); field.wheelEnabled: false
+        foreground: Color.popups.text; fieldWidth: Style.space(120)
         onModified: value => root.service.setRev("start", value)
       }
-      UI.NumberField {
+      NumberKeyField {
         label: "Full lights (%)"; from: root.config.start + 1; to: 100; value: root.config.full
-        foreground: Color.popups.text; fieldWidth: Style.space(120); field.wheelEnabled: false
+        foreground: Color.popups.text; fieldWidth: Style.space(120)
         onModified: value => root.service.setRev("full", value)
       }
     }
@@ -55,7 +55,7 @@ Column {
     }
   }
   Card {
-    UI.NumberField { label: "LED count"; from: 1; to: 32; value: root.config.leds; foreground: Color.popups.text; field.wheelEnabled: false; onModified: value => root.service.setRev("leds", value) }
+    NumberKeyField { label: "LED count"; from: 1; to: 32; value: root.config.leds; foreground: Color.popups.text; onModified: value => root.service.setRev("leds", value) }
     Label { width: parent.width; text: "Automobilista 2: UDP protocol Project CARS 2, frequency 1. Other supported games are detected automatically."; font.pixelSize: Style.font.bodySmall; opacity: 0.55 }
     Label { width: parent.width; visible: (root.rev.unavailableListeners || []).length > 0; text: "Telemetry ports in use: " + (root.rev.unavailableListeners || []).join(", "); color: Color.urgent }
   }

@@ -34,6 +34,13 @@ updates are not implemented upstream and are not claimed here.
 Tests cover 175 top-level controls, nested preset switches, actual rotation
 conversion callbacks, invalid edits, preset names and preset dialogs. Rust
 tests cover threshold boundaries, disabled lights and full-width masks.
+The panel uses no Qt text input types: on Qt 6.12 every editable one reads the
+clipboard whenever another application changes it, unbounded, even while
+hidden. `controls/KeyField.qml` and `controls/NumberKeyField.qml` build the
+text and number fields from key events instead. `tests/test_qml.py` fails if
+any plugin QML uses a Qt or kit text input or the clipboard, and runs the
+offscreen `qmltestrunner` field tests in `tests/qml/` with stand-ins for the
+shell kit.
 R12/CS V2P settings reads and the physical LED sweep have been confirmed.
 Calibration/FFB writes and other hardware models still need deliberate checks
 on their respective devices; adapter coverage is not hardware validation.

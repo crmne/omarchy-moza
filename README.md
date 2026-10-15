@@ -115,6 +115,11 @@ standalone tray, window and autostart options are replaced by the plugin host.
 Calibration, resets and profile loading retain Boxflat's behaviour. Colour
 fields accept `#RRGGBB`; modern-wheel colours also update the telemetry palette.
 
+Number and text fields read typed keys only and never the clipboard, so there
+is no paste. Focusing a number selects it for replacement; Up/Down or the
+arrows step it, Return or leaving the field applies it within range, and Escape
+restores it. Scrolling the panel never changes a value.
+
 ```sh
 omarchy plugin disable crmne.moza
 omarchy plugin remove crmne.moza

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls as Controls
 import qs.Commons
 import qs.Ui as UI
 
@@ -47,14 +46,13 @@ Column {
       fillColor: Color.accent; knobColor: Color.popups.text
       onReleased: value => root.act("set", value)
     }
-    UI.NumberField {
+    NumberKeyField {
       id: number
       fieldWidth: Style.space(84)
       from: root.rowState.min || 0; to: root.rowState.max || 100
       value: Number(root.rowState.value) || 0
       stepSize: root.rowState.step || 1
       foreground: Color.popups.text
-      field.wheelEnabled: false
       onModified: value => root.act("set", value)
     }
   }
@@ -65,11 +63,12 @@ Column {
     options: (root.rowState.options || []).map((text, index) => ({label: text, value: String(index)}))
     onChanged: value => root.act("set", Number(value))
   }
-  UI.TextField {
+  KeyField {
     id: entry
     visible: root.kind === "entry"
     width: parent.width
-    text: root.rowState.value || ""
+    value: root.rowState.value || ""
+    maximumLength: 160
     onTextEdited: root.act("set", text)
   }
   Repeater {
@@ -102,13 +101,19 @@ Column {
         width: Style.space(88)
         spacing: Style.space(4)
         Rectangle { width: parent.width; height: Style.space(14); radius: Style.cornerRadius; color: root.rowState.colors[parent.index] || "#000000" }
-        UI.TextField {
+        KeyField {
+          id: hex
+          readonly property int led: parent.index
           width: parent.width
-          text: root.rowState.colors[parent.index] || "#000000"
+          value: root.rowState.colors[led] || "#000000"
           font.pixelSize: Style.font.caption
           maximumLength: 7
-          validator: RegularExpressionValidator { regularExpression: /#[0-9a-fA-F]{6}/ }
-          onEditingFinished: if (acceptableInput) root.act("color", text, parent.index)
+          allowedCharacters: /[#0-9a-fA-F]/
+          onEditingFinished: {
+            if (text === value) return
+            if (/^#[0-9a-fA-F]{6}$/.test(text)) root.act("color", text, led)
+            else text = value
+          }
         }
       }
     }
