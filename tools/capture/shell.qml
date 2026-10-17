@@ -66,16 +66,19 @@ ShellRoot {
         layer.effect: MultiEffect { blurEnabled: true; blurMax: 16; blur: 0.7 }
       }
       Rectangle { anchors.fill: parent; color: "#a6000000" }
+      // The marketplace card keeps only a wide strip from the middle and the
+      // websites crop to 16:9, so the panels run large, at 1.1x the capture,
+      // past the edges, with the RPM readout and pedal inputs mid-height.
       Image {
         id: inputs
-        x: 90; y: 240; width: 1240; height: 1158
+        x: -365; y: 60; width: 1606; height: 1500
         source: preview.visible ? Quickshell.env("MOZA_OUTPUT") + "/inputs.png" : ""
         fillMode: Image.PreserveAspectFit
         layer.enabled: true
         layer.effect: MultiEffect { shadowEnabled: true; shadowBlur: 0.8; shadowOpacity: 0.6; shadowVerticalOffset: 20 }
       }
       Image {
-        x: 1230; y: 95; width: 1240; height: 1158
+        x: 960; y: 170; width: 1606; height: 1500
         source: preview.visible ? Quickshell.env("MOZA_OUTPUT") + "/rev-lights.png" : ""
         fillMode: Image.PreserveAspectFit
         layer.enabled: true

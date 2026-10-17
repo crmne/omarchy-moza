@@ -3,8 +3,9 @@
 `preview.png` is a composition of the real Home and Rev lights panels. The
 individual captures are in `screenshots/`. All use production QML controls,
 Omarchy's Ristretto palette, JetBrainsMono Nerd Font, and 10 px corner rounding.
-The arrangement follows the marketplace preview of
-[omarchy-hyprmoncfg](https://github.com/crmne/omarchy-hyprmoncfg).
+The marketplace card shows only a wide strip from the middle and the websites
+crop to 16:9, so the panels are shown at 1.1x the capture and run off the
+edges, with the RPM readout, rev lights and pedal inputs at mid-height.
 
 The capture host uses Boxflat's existing demo model to build the settings
 pages. Fixtures supply 6,420 RPM against a 6,800 RPM redline, eight illuminated
