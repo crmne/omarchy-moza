@@ -36,7 +36,13 @@ impl Config {
         self.start < self.full && self.full <= 100 && (1..=32).contains(&self.leds)
     }
     fn mask(&self, engine: &EngineState) -> u32 {
-        if !self.enabled || engine.rpm <= 0 || engine.rpm_redline <= engine.rpm_idle {
+        // Telemetry is unauthenticated UDP: a non-positive redline would make
+        // the light range empty or inverted, so treat it as no data.
+        if !self.enabled
+            || engine.rpm <= 0
+            || engine.rpm_redline <= 0
+            || engine.rpm_redline <= engine.rpm_idle
+        {
             return 0;
         }
         let rpm = i64::from(engine.rpm) * 100;
@@ -304,6 +310,19 @@ mod tests {
             },
         ] {
             assert!(!c.validate());
+        }
+    }
+    #[test]
+    fn ignores_non_positive_redline() {
+        for (rpm_redline, rpm_idle) in [(0, -1), (-5, -10), (i32::MIN + 1, i32::MIN)] {
+            for rpm in [1, 6800, i32::MAX] {
+                let engine = EngineState {
+                    rpm,
+                    rpm_redline,
+                    rpm_idle,
+                };
+                assert_eq!(Config::default().mask(&engine), 0);
+            }
         }
     }
     #[test]
