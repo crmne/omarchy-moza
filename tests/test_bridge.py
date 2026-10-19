@@ -72,20 +72,75 @@ class BridgeTests(unittest.TestCase):
         dialog.close()
         self.assertIsNone(self.bridge.dialog)
 
-    def test_static_colours_also_update_external_telemetry_palette(self):
+    def test_static_white_reads_cannot_overwrite_live_rev_colors(self):
         bridge = self.bridge
-        recorded = []
-        original = bridge.cm._handle_setting
-        bridge.cm._handle_setting = lambda value, name, device, rw: recorded.append((value, name, device))
-        bridge.palette.clear()
+        colors = list(bridge.rev_config['colors'])
+        with patch.object(bridge.cm, '_handle_setting') as write, patch.object(bridge.rev, 'send') as send:
+            for _ in range(3):
+                for i in range(10): bridge.cm._dispatch(f'wheel-rpm-color{i+1}', [255, 255, 255])
+                while GLib.MainContext.default().pending(): GLib.MainContext.default().iteration(False)
+            write.assert_not_called()
+            send.assert_not_called()
+        self.assertEqual(bridge.rev_config['colors'], colors)
+
+    def test_default_rev_colors_use_saturated_led_channels(self):
+        # Green and red must not mix in other channels, which made the
+        # physical strip look white/pink despite the named color controls.
+        self.assertEqual(self.bridge.document()['config']['colors'],
+                         ['#00ff00', '#ffff00', '#ff0000'])
+
+    def test_rev_color_changes_are_saved_and_sent_together(self):
+        bridge = self.bridge
+        original = dict(bridge.rev_config)
+        config = dict(original, colors=['#123456', '#7e7e7e', '#ff0000'], brightness=42)
         try:
-            for i in range(10): bridge.sync_colour([i, 20, 30], i)
-            self.assertEqual(len(recorded), 2)
-            self.assertEqual(recorded[0][0], [v for i in range(5) for v in [i, i, 20, 30]])
-            self.assertEqual(recorded[1][1:], ('telemetry-rpm-colors', 'wheel'))
-            bridge.sync_colour([9, 20, 30], 9)
-            self.assertEqual(len(recorded), 2)
-        finally: bridge.cm._handle_setting = original
+            with patch('backend.bridge.OUT', io.StringIO()), patch.object(bridge.rev, 'send') as send:
+                bridge.command(dict(op='rev', config=config))
+                self.assertEqual(bridge.error, '')
+                self.assertEqual(bridge.settings.read_setting('rev'), config)
+                send.assert_called_once_with(dict(op='configure', config=config))
+                # Older callers still changing thresholds must preserve the palette.
+                bridge.command(dict(op='rev', config=dict(start=70, full=95, leds=12, enabled=True)))
+                self.assertEqual(bridge.rev_config['colors'], config['colors'])
+                self.assertEqual(bridge.rev_config['brightness'], 42)
+                self.assertEqual(bridge.rev_config['flash'], config['flash'])
+                self.assertEqual(bridge.rev_config['flash_hz'], config['flash_hz'])
+        finally:
+            bridge.rev_config = original
+            bridge.settings.write_setting(original, 'rev')
+
+    def test_invalid_rev_colors_do_not_write_settings_or_hardware(self):
+        bridge = self.bridge
+        for change in [dict(colors=['#ffffff']), dict(colors=['red'] * 3), dict(colors=['#1234567'] * 3),
+                       dict(colors=['#gggggg'] * 3), dict(brightness=-1), dict(brightness=101), dict(brightness=True)]:
+            with self.subTest(change=change), patch('backend.bridge.OUT', io.StringIO()), patch.object(bridge.rev, 'send') as send, patch.object(bridge.settings, 'write_setting') as save:
+                bridge.command(dict(op='rev', config=dict(bridge.rev_config, **change)))
+                self.assertTrue(bridge.error)
+                send.assert_not_called()
+                save.assert_not_called()
+        bridge.error = ''
+
+    def test_flash_controls_validate_and_are_saved_independently(self):
+        bridge = self.bridge
+        original = dict(bridge.rev_config)
+        try:
+            for change in [dict(flash=0), dict(flash=101), dict(flash=True),
+                           dict(flash_hz=0), dict(flash_hz=21), dict(flash_hz=4.5)]:
+                with self.subTest(change=change), patch('backend.bridge.OUT', io.StringIO()), patch.object(bridge.rev, 'send') as send:
+                    bridge.command(dict(op='rev', config=dict(original, **change)))
+                    self.assertTrue(bridge.error)
+                    send.assert_not_called()
+            for change in [dict(flash=90), dict(flash=99), dict(flash_hz=7)]:
+                config = dict(original, **change)
+                with patch('backend.bridge.OUT', io.StringIO()), patch.object(bridge.rev, 'send') as send:
+                    bridge.command(dict(op='rev', config=config))
+                    self.assertEqual(bridge.error, '')
+                    self.assertEqual(bridge.settings.read_setting('rev'), config)
+                    self.assertEqual(bridge.rev_config['full'], original['full'])
+                    send.assert_called_once_with(dict(op='configure', config=config))
+        finally:
+            bridge.rev_config = original
+            bridge.settings.write_setting(original, 'rev')
 
     def test_live_inputs_do_not_rebuild_settings(self):
         bridge = self.bridge
@@ -115,6 +170,32 @@ class BridgeTests(unittest.TestCase):
                 bridge.publish(force=True)
                 self.assertEqual(len(output.getvalue().splitlines()), 1)
             finally: bridge.command(dict(op='focus', name='Rev lights', opened=False))
+
+    def test_rev_preview_updates_without_scanning_settings(self):
+        bridge = self.bridge
+        original = bridge.rev.status
+        output = io.StringIO()
+        try:
+            with patch('backend.bridge.OUT', output):
+                bridge.command(dict(op='focus', name='Rev lights', opened=True))
+                output.seek(0); output.truncate()
+                with patch.object(bridge, 'document', side_effect=AssertionError('Preview must not scan settings')):
+                    for mask in [1023, 0, 1023]:
+                        bridge.rev.status = dict(original, mask=mask, rpm=6500)
+                        bridge.publish_live()
+                        bridge.publish_live()
+                frames = [json.loads(line) for line in output.getvalue().splitlines()]
+                self.assertEqual([f['rev']['mask'] for f in frames], [1023, 0, 1023])
+                self.assertTrue(all(set(f) == {'rev'} for f in frames))
+                bridge.command(dict(op='focus', name='Home', opened=True))
+                output.seek(0); output.truncate()
+                bridge.rev.status = dict(original, mask=0, rpm=6500)
+                bridge.publish_live()
+                self.assertEqual(output.getvalue(), '')
+        finally:
+            bridge.rev.status = original
+            with patch('backend.bridge.OUT', io.StringIO()):
+                bridge.command(dict(op='focus', name='Rev lights', opened=False))
 
     def test_live_sampling_tracks_page_changes_and_closing(self):
         bridge = self.bridge

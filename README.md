@@ -26,7 +26,8 @@ They do not represent a live game or additional hardware testing.
 ## Features
 
 - Live RPM, configurable first/full thresholds (80–97% by default), LED count,
-  on/off, and a hardware sweep test. Changes apply without restarting.
+  on/off, and a hardware sweep test. Modern wheels also get saved colors and
+  brightness. Changes apply without restarting.
 - Wheelbase rotation, force feedback, damping, friction, inertia, protection,
   equalizer, force curve, soft limits, temperatures, and startup sound.
 - Modern and legacy wheel settings: paddles, encoders, joystick modes,
@@ -100,7 +101,16 @@ omarchy-shell crmne.moza configure 80 97
 
 The Rust engine listens for Automobilista 2 / Project CARS, Wreckfest 2,
 Codemasters legacy telemetry, BeamNG / OutGauge, Assetto Corsa and Forza.
-Game setup and default ports follow moza-rev. For AMS2, select **Project CARS 2**
+Assetto Corsa uses the small CSP companion installed by
+[assetto-corsa-setup](https://github.com/crmne/assetto-corsa-setup), sending
+the current car's actual RPM, limiter and idle RPM to `127.0.0.1:9997`.
+Run the updated setup script with the game closed, then start a session.
+This replaces AC's legacy UDP feed, which has no limiter and guessed a
+7,000 RPM ceiling. Low-revving cars work without a fixed RPM floor, car
+changes apply immediately, and over-revs never change the limit. Without
+the companion or a valid car limiter, AC lights stay off rather than guessing.
+No telemetry leaves the computer. Other games' setup and default ports
+follow moza-rev. For AMS2, select **Project CARS 2**
 UDP and **frequency 1**. Linux can also need the broadcast-routing setup in
 [moza-rev's documentation](https://github.com/francisdb/moza-rev).
 Occupied telemetry ports are reported in the rev-light page.
@@ -115,8 +125,32 @@ before starting the plugin to import them. Device settings are read from hardwar
 
 The plugin runs while enabled, including with the panel closed. Boxflat's
 standalone tray, window and autostart options are replaced by the plugin host.
-Resets and profile loading retain Boxflat's behaviour. Colour
-fields accept `#RRGGBB`; modern-wheel colours also update the telemetry palette.
+Resets and profile loading retain Boxflat's behaviour. Colour fields accept
+`#RRGGBB`.
+
+### Rev lights
+
+On **Rev lights**, choose colors for the first, middle and last sections, using
+the color menus or a custom `#RRGGBB` value. Saturated green (`#00ff00`), yellow
+(`#ffff00`) and red (`#ff0000`) are the defaults. Custom RGB values are sent
+unchanged.
+**Brightness (%)** controls the whole strip. The preview uses the
+same colors and brightness as the wheel. **Test lights** runs a short sweep,
+then flashes the whole strip for one second.
+
+**Flash at (%)** sets a separate shift cue, defaulting to 95% of the game's
+reported rev limit. The panel shows the corresponding RPM for the current car.
+Lower it for an earlier cue; **Flashes per second** adjusts the rate from 1 to
+20, defaulting to 10. The whole strip flashes in your chosen colors, even if
+the progressive strip has not reached **Full lights (%)** yet. It returns to
+progressive lights below the flash point and clears when telemetry stops.
+This cue does not calculate the engine's optimum power-band shift point.
+
+Colors and brightness are saved with the rev-light settings and restored after
+reconnecting, changing the LED count or running a wheel test. **Wheel** controls
+the wheel's static colors separately; reading those settings no longer replaces
+the live rev colors. Custom live colors and brightness require a modern wheel
+protocol; the controls are disabled on legacy wheels.
 
 ### Pedal calibration and limits
 

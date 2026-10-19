@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import signal
 import subprocess
 import sys
@@ -43,7 +44,6 @@ class Rev:
         self.lock = threading.Lock()
         self.process = None
         self.buffer = bytearray()
-        self.on_connect = lambda: None
         if simulate: return
         binary = ROOT / "bin" / ("omarchy-moza" if os.uname().machine == "x86_64" else "omarchy-moza-" + os.uname().machine)
         if not binary.exists():
@@ -66,9 +66,7 @@ class Rev:
             try: message = json.loads(line)
             except ValueError: continue
             if "status" in message:
-                was_connected = self.status.get("connected", False)
                 self.status = message["status"]
-                if self.status.get("connected") and not was_connected: self.on_connect()
             if "serial" in message:
                 self.buffer.extend(message["serial"])
                 # Match Boxflat's receive framing, retaining partial reads.
@@ -106,7 +104,8 @@ class Bridge:
         self.last_live = {}
         self.live_timer = None
         self.last_publish = 0.0
-        self.rev_config = dict(start=80, full=97, leds=10, enabled=True)
+        self.rev_config = dict(start=80, full=97, flash=95, flash_hz=10, leds=10, enabled=True,
+                               colors=["#00ff00", "#ffff00", "#ff0000"], brightness=100)
         config_path = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home()/".config"))) / "omarchy-moza"
         if demo:
             import tempfile
@@ -114,13 +113,10 @@ class Bridge:
             config_path = Path(self.temporary.name)
         self.settings = SettingsHandler(str(config_path))
         saved = self.settings.read_setting("rev")
-        if self.valid_rev(saved): self.rev_config = saved
+        if self.valid_rev(saved): self.rev_config.update(saved)
         self.rev = Rev(self.rev_config, demo)
+        self.last_rev = dict(self.rev.status)
         self.cm = connection_manager.MozaConnectionManager(str(BOXFLAT/"data/serial.yml"), demo)
-        self.palette = {}
-        self.rev.on_connect = self.palette.clear
-        for index in range(10):
-            self.cm.subscribe(f"wheel-rpm-color{index+1}", self.sync_colour, index)
         self.hid = HidHandler()
         self.hid.set_detection_fix_enabled(self.settings.read_setting("moza-detection-fix-enabled") or 0)
         self.cm.subscribe("hid-device-connected", self.hid.add_device)
@@ -178,7 +174,17 @@ class Bridge:
 
     @staticmethod
     def valid_rev(c):
-        return isinstance(c, dict) and set(c) == {"start", "full", "leds", "enabled"} and all(type(c[k]) is int for k in ["start", "full", "leds"]) and type(c["enabled"]) is bool and 0 <= c["start"] < c["full"] <= 100 and 1 <= c["leds"] <= 32
+        required = {"start", "full", "leds", "enabled"}
+        return (isinstance(c, dict) and required <= set(c) <= required | {"colors", "brightness", "flash", "flash_hz"}
+                and all(type(c[k]) is int for k in ["start", "full", "leds"])
+                and type(c["enabled"]) is bool and 0 <= c["start"] < c["full"] <= 100
+                and 1 <= c["leds"] <= 32
+                and type(c.get("flash", 95)) is int and 1 <= c.get("flash", 95) <= 100
+                and type(c.get("flash_hz", 10)) is int and 1 <= c.get("flash_hz", 10) <= 20
+                and type(c.get("brightness", 100)) is int and 0 <= c.get("brightness", 100) <= 100
+                and isinstance(c.get("colors", []), list)
+                and ("colors" not in c or len(c["colors"]) == 3 and all(
+                    isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color) for color in c["colors"])))
 
     def hold(self): pass
     def release(self): pass
@@ -189,16 +195,6 @@ class Bridge:
             self.message = text
     def present(self, dialog): self.dialog = dialog
     def close_dialog(self): self.dialog = None; return True
-
-    def sync_colour(self, rgb, index):
-        if not isinstance(rgb, list) or len(rgb) != 3 or self.palette.get(index) == rgb: return
-        self.palette[index] = list(rgb)
-        # Static colours and the external telemetry palette are separate on
-        # modern MOZA wheels. Reuse Boxflat's packet construction for both.
-        if len(self.palette) == 10:
-            for start in [0, 5]:
-                values = [value for i in range(start, start+5) for value in [i, *self.palette[i]]]
-                self.cm.set_setting(values, "wheel-telemetry-rpm-colors")
 
     def document(self):
         pages = []
@@ -216,10 +212,17 @@ class Bridge:
     def publish_live(self):
         try:
             values = self.model.live_values()
+            update = {}
             if values != self.last_live:
-                OUT.write(json.dumps(dict(live=values), separators=(",", ":")) + "\n")
-                OUT.flush()
+                update["live"] = values
                 self.last_live = values
+            status = self.rev.status
+            if self.focus == "Rev lights" and status != self.last_rev:
+                update["rev"] = status
+                self.last_rev = dict(status)
+            if update:
+                OUT.write(json.dumps(update, separators=(",", ":")) + "\n")
+                OUT.flush()
         except BrokenPipeError: self.loop.quit(); return False
         return True
 
@@ -245,6 +248,7 @@ class Bridge:
                 OUT.flush()
                 self.last_document = text
                 self.last_live = live
+                self.last_rev = dict(doc["rev"])
             else:
                 self.publish_live()
         except BrokenPipeError: self.loop.quit(); return False
@@ -262,9 +266,9 @@ class Bridge:
             elif op == "act": self.model.act(request["id"], request["action"], request.get("value"), request.get("index", 0))
             elif op == "rev":
                 config = request["config"]
-                if not self.valid_rev(config): raise ValueError("First light must be below full lights (0–100%); LED count must be 1–32.")
+                if not self.valid_rev(config): raise ValueError("Use first < full (0–100%), flash 1–100%, 1–20 flashes/second, 1–32 LEDs, three #RRGGBB colors and brightness 0–100%.")
+                config = dict(self.rev_config, **config)
                 self.settings.write_setting(config, "rev")
-                if config["leds"] != self.rev_config["leds"]: self.palette.clear()
                 self.rev_config = config
                 self.rev.send(dict(op="configure", config=config))
             elif op == "test": self.rev.send(dict(op="test"))

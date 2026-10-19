@@ -10,7 +10,7 @@ Item {
   property var pages: []
   property var panels: []
   property var rev: ({})
-  property var config: ({start: 80, full: 97, leds: 10, enabled: true})
+  property var config: ({start: 80, full: 97, flash: 95, flash_hz: 10, leds: 10, enabled: true, colors: ["#00ff00", "#ffff00", "#ff0000"], brightness: 100})
   property string error: ""
   property string message: ""
   property bool ready: false
@@ -37,6 +37,11 @@ Item {
     var next = Object.assign({}, config); next[key] = value
     send({op: "rev", config: next})
   }
+  function setRevColor(index, value) {
+    var colors = config.colors.slice()
+    colors[index] = value
+    setRev("colors", colors)
+  }
   function ingest(line) {
     if (line.length > 1048576) return
     var data
@@ -44,11 +49,12 @@ Item {
     if (!data) return
     if (data.setup !== undefined) { setup = data.setup; return }
     if (data.live !== undefined) liveValues = data.live
+    if (data.rev !== undefined) rev = data.rev
     if (!data.panels) return
     var justInstalled = needsSetup
     setup = null
     ready = true
-    rev = data.rev || {}; config = data.config || config
+    config = data.config || config
     error = data.error || rev.error || ""; message = data.message || ""
     dialog = !!data.dialog; demo = !!data.demo
     var rowState = {}, groupState = {}

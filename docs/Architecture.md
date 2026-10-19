@@ -10,8 +10,9 @@ options and availability, invoking the original callbacks for edits. Separate
 layout and state maps avoid rebuilding controls during live updates.
 Wheel/pedal input readings use cached getters on an 8 ms timer while the panel
 is open, keeping up with Boxflat's 120 Hz HID sampler. Only changed readings
-cross to QML; settings/layout scans remain at 10 Hz (1 Hz when closed), and
-the fast timer stops when the panel closes.
+cross to QML. The rev preview uses the same lightweight path with Rust status
+at 50 Hz, keeping the shift flash visible. Settings/layout scans remain at
+10 Hz (1 Hz when closed), and the fast timer stops when the panel closes.
 
 The Rust executable in rev/ reuses moza-rev's listeners and protocol client.
 Packets, RPM mapping, heartbeat, reconnection and LED writes remain in Rust.
@@ -19,6 +20,15 @@ JSON carries status, configuration and Boxflat settings frames. Output queues
 are bounded and nonblocking so UI backpressure does not delay LED updates.
 Settings work is limited per loop; queued telemetry uses the newest sample.
 Closing stdin stops the engine and clears the lights.
+
+Assetto Corsa uses our `rev/src/assetto_corsa.rs` listener on loopback UDP
+9997 instead of moza-rev's RTCarInfo listener. The CSP companion in
+assetto-corsa-setup sends versioned JSON with current RPM, `rpmLimiter`, and
+`rpmMinimum` at up to 60 Hz. Each packet contains its own limit, so lower
+revving cars, car changes, and downshift over-revs need no learning or reset.
+Invalid limits are rejected without imposing an arbitrary RPM floor.
+The normal two-second telemetry timeout clears stale lights; menus/replays
+send zero RPM. This requires the CSP companion, not AC's legacy UDP option.
 
 Rust owns the base serial port. A proxy delivers replies to Boxflat's connection
 manager. Boxflat's normal serial handlers still manage directly attached
@@ -53,7 +63,22 @@ and the actual GTK-button-to-worker path. They do not validate pedal firmware.
 
 Tests cover 175 top-level controls, nested preset switches, actual rotation
 conversion callbacks, invalid edits, preset names and preset dialogs. Rust
-tests cover threshold boundaries, disabled lights and full-width masks.
+tests cover threshold boundaries, disabled lights, full-width masks, custom
+color framing and palette restoration after connection or LED-count changes.
+The independent flash threshold defaults to 95% of redline. Above it, the
+whole strip flashes at the configured 1–20 Hz (10 Hz by default), even if the
+normal progressive strip has not filled yet.
+A monotonic clock drives the phase independently of telemetry packet arrival;
+mask changes are sent immediately, including between packets. Dropping below
+the threshold, disabled lights, or stale/invalid telemetry resets the phase.
+The light test ends with one second of the same flash. Tests cover phase
+boundaries, custom rates, rearming, low redlines, single/32-LED strips and test
+completion. Older saved configurations get the new defaults without resetting
+their existing thresholds, palette or brightness.
+The Rust configuration owns the live RGB palette and brightness. It applies
+these after moza-rev's initialization and after paused Boxflat wheel tests;
+static color reads from Boxflat never overwrite that palette. Old saved rev
+settings receive the default green/yellow/red colors and full brightness.
 The panel uses no Qt text input types: on Qt 6.12 every editable one reads the
 clipboard whenever another application changes it, unbounded, even while
 hidden. `controls/KeyField.qml` and `controls/NumberKeyField.qml` build the
