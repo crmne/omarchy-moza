@@ -13,6 +13,12 @@ them with the committed executable. It verifies the checksum and original
 Boxflat snapshot, then writes a report identifying the source commit,
 package/compiler versions and hashes.
 
+From 0.3.1, report generation requires the workflow's full source SHA and
+release publication checks it against the release commit. This also works
+when checkout uses a source archive without Git metadata. Earlier reports
+could leave the `source_commit` field empty; their GitHub attestations still
+identify the source commit.
+
 Successful builds of the main branch and release tags receive GitHub artifact
 attestations for the binary and report. Pull requests are checked but never
 attested. The Release workflow requires both tests and reproduction to pass,

@@ -33,6 +33,7 @@ jobs:
           version=$(jq -r .version manifest.json)
           test "$GITHUB_REF_NAME" = "v$version"
           test -s "docs/releases/$version.md"
+          grep -Fx "source_commit=$GITHUB_SHA" binary-provenance.txt
           gh attestation verify bin/omarchy-moza --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
           gh attestation verify binary-provenance.txt --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
       - name: Publish plugin and provenance
