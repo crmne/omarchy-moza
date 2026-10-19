@@ -8,9 +8,10 @@ in [Upstreams.md](Upstreams.md).
 ## Verification
 
 The **Verify bundled Rust binary** workflow compiles twice in separate clean
-target directories, compares the outputs, and compares them with the committed
-executable. It verifies the checksum and original Boxflat snapshot, then writes
-a report identifying the source commit, package/compiler versions and hashes.
+target directories and empty mbx stores, compares the outputs, and compares
+them with the committed executable. It verifies the checksum and original
+Boxflat snapshot, then writes a report identifying the source commit,
+package/compiler versions and hashes.
 
 Successful builds of the main branch and release tags receive GitHub artifact
 attestations for the binary and report. Pull requests are checked but never
@@ -37,10 +38,13 @@ The builder image is pinned by digest and installs signed Arch packages from
 the 2026-09-02 archive. `tools/build-env.sh` asserts the toolchain versions.
 `tools/reproduce-binary.sh` fixes the build epoch, disables incremental builds
 and remaps both Cargo and source paths so checkout locations do not affect
-the binary. Use Docker on x86-64 Linux:
+the binary. Builds run through mbx with no restored compiler outputs. Use Docker
+and the pinned mbx installation on x86-64 Linux:
 
 ```sh
+mise install
 docker run --rm -v "$PWD:/source:ro" -w /source \
+  -v "$(mise which mbx):/usr/local/bin/mbx:ro" \
   archlinux@sha256:84cd9ef000b3cff245ec028e87965b84724f4bf1cc63fc2741ba927b88515ed6 \
   bash -c 'bash tools/build-env.sh && bash tools/reproduce-binary.sh'
 ```

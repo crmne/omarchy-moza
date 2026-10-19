@@ -4,14 +4,14 @@ BINARY := bin/omarchy-moza$(if $(filter x86_64,$(ARCH)),,-$(ARCH))
 
 .PHONY: build test install validate verify-binary verify-upstream
 build:
-	cargo build --release --locked --manifest-path rev/Cargo.toml
+	mbx build --release --locked --manifest-path rev/Cargo.toml
 	install -Dm755 rev/target/release/omarchy-moza $(BINARY)
 	sha256sum $(BINARY) > $(BINARY).sha256
 
 test:
 	python3 -B tools/boxflat-source.py
-	cargo test --locked --manifest-path rev/Cargo.toml
-	cargo clippy --locked --manifest-path rev/Cargo.toml --all-targets -- -D warnings
+	mbx test --locked --manifest-path rev/Cargo.toml
+	mbx clippy --locked --manifest-path rev/Cargo.toml --all-targets -- -D warnings
 	/usr/bin/python3 -B -m unittest discover -s tests -v
 
 validate:

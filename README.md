@@ -70,12 +70,15 @@ For another architecture, build on that machine before enabling the plugin:
 ```sh
 git clone https://github.com/crmne/omarchy-moza.git
 cd omarchy-moza
+mise install
 make build install
 omarchy plugin enable crmne.moza
 ```
 
-Building needs Rust, a C toolchain, pkg-config and libudev development files
-(`rust`, `base-devel`, `systemd-libs` on Omarchy).
+Building needs Rust, mbx, a C toolchain, pkg-config and libudev development files.
+`mise install` installs the pinned Rust and mbx versions; the system build
+dependencies are `base-devel` and `systemd-libs` on Omarchy. Contributors who
+do not use mise or mbx can run Cargo directly in `rev/`.
 
 Close standalone Boxflat and stop standalone moza-rev first. They must not
 compete for device replies or UDP ports. System packages and device rules are
@@ -130,6 +133,7 @@ Disabling releases the devices. Removal leaves settings and presets intact.
 ## Development and attribution
 
 ```sh
+mise install
 make test
 make validate
 make build

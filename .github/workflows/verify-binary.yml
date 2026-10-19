@@ -23,6 +23,11 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Install the dated, signed build environment
         run: bash tools/build-env.sh
+      - uses: jdx/mr-boxington-action@fba1545410bea5fdd704167667b30d8ef78a8788 # v1
+        with:
+          version: 1.24.1
+          backend: local
+          working-directory: rev
       - name: Verify original Boxflat source
         run: python -B tools/boxflat-source.py --upstream
       - name: Rebuild twice and compare with the bundled executable
