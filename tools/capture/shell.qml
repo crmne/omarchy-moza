@@ -4,6 +4,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 
 ShellRoot {
   id: host
@@ -20,9 +21,9 @@ ShellRoot {
     property real barSize: 26
     property bool vertical: false
     property bool foregroundAnimationEnabled: false
-    property color urgent: Color.urgent
-    property color barForeground: Color.bar.text
-    property color foreground: Color.bar.text
+    property color urgent: Commons.Color.urgent
+    property color barForeground: Commons.Color.bar.text
+    property color foreground: Commons.Color.bar.text
     property string fontFamily: Style.font.family
     property var activePopout: null
     property var clickTargets: []

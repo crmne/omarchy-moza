@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as UI
 
 Column {
@@ -9,7 +10,7 @@ Column {
   readonly property var rev: service.rev
   readonly property var config: service.config
   Card {
-    Label { width: parent.width; text: root.rev.game || (root.rev.connected ? "Ready for telemetry" : "Connect your MOZA wheelbase"); color: Color.accent; font.pixelSize: Style.font.bodySmall }
+    Label { width: parent.width; text: root.rev.game || (root.rev.connected ? "Ready for telemetry" : "Connect your MOZA wheelbase"); color: Commons.Color.accent; font.pixelSize: Style.font.bodySmall }
     Row {
       spacing: Style.space(8)
       Label { text: String(root.rev.rpm || 0); font.pixelSize: Style.space(46); font.bold: true }
@@ -32,18 +33,18 @@ Column {
     Label { text: root.rev.redline ? "Redline  " + root.rev.redline + " RPM" : "Start a driving session to see live RPM."; font.pixelSize: Style.font.bodySmall; opacity: 0.55 }
   }
   Card {
-    Label { text: "SHIFT LIGHTS"; color: Color.accent; font.pixelSize: Style.font.caption; font.bold: true; font.letterSpacing: 1.1 }
-    UI.Toggle { width: parent.width; label: "Rev lights"; description: "Respond to live game telemetry"; checked: root.config.enabled; foreground: Color.popups.text; onClicked: root.service.setRev("enabled", !checked) }
+    Label { text: "SHIFT LIGHTS"; color: Commons.Color.accent; font.pixelSize: Style.font.caption; font.bold: true; font.letterSpacing: 1.1 }
+    UI.Toggle { width: parent.width; label: "Rev lights"; description: "Respond to live game telemetry"; checked: root.config.enabled; foreground: Commons.Color.popups.text; onClicked: root.service.setRev("enabled", !checked) }
     Row {
       width: parent.width; spacing: Style.space(24)
       NumberKeyField {
         label: "First light (%)"; from: 0; to: root.config.full - 1; value: root.config.start
-        foreground: Color.popups.text; fieldWidth: Style.space(120)
+        foreground: Commons.Color.popups.text; fieldWidth: Style.space(120)
         onModified: value => root.service.setRev("start", value)
       }
       NumberKeyField {
         label: "Full lights (%)"; from: root.config.start + 1; to: 100; value: root.config.full
-        foreground: Color.popups.text; fieldWidth: Style.space(120)
+        foreground: Commons.Color.popups.text; fieldWidth: Style.space(120)
         onModified: value => root.service.setRev("full", value)
       }
     }
@@ -55,8 +56,8 @@ Column {
     }
   }
   Card {
-    NumberKeyField { label: "LED count"; from: 1; to: 32; value: root.config.leds; foreground: Color.popups.text; onModified: value => root.service.setRev("leds", value) }
+    NumberKeyField { label: "LED count"; from: 1; to: 32; value: root.config.leds; foreground: Commons.Color.popups.text; onModified: value => root.service.setRev("leds", value) }
     Label { width: parent.width; text: "Automobilista 2: UDP protocol Project CARS 2, frequency 1. Other supported games are detected automatically."; font.pixelSize: Style.font.bodySmall; opacity: 0.55 }
-    Label { width: parent.width; visible: (root.rev.unavailableListeners || []).length > 0; text: "Telemetry ports in use: " + (root.rev.unavailableListeners || []).join(", "); color: Color.urgent }
+    Label { width: parent.width; visible: (root.rev.unavailableListeners || []).length > 0; text: "Telemetry ports in use: " + (root.rev.unavailableListeners || []).join(", "); color: Commons.Color.urgent }
   }
 }

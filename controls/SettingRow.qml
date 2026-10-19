@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as UI
 
 Column {
@@ -42,8 +43,8 @@ Column {
       anchors.verticalCenter: parent.verticalCenter
       minimum: root.rowState.min || 0; maximum: root.rowState.max || 100
       value: Number(root.rowState.value) || 0; integer: true
-      trackColor: Util.alpha(Color.popups.text, 0.12)
-      fillColor: Color.accent; knobColor: Color.popups.text
+      trackColor: Util.alpha(Commons.Color.popups.text, 0.12)
+      fillColor: Commons.Color.accent; knobColor: Commons.Color.popups.text
       onReleased: value => root.act("set", value)
     }
     NumberKeyField {
@@ -52,7 +53,7 @@ Column {
       from: root.rowState.min || 0; to: root.rowState.max || 100
       value: Number(root.rowState.value) || 0
       stepSize: root.rowState.step || 1
-      foreground: Color.popups.text
+      foreground: Commons.Color.popups.text
       onModified: value => root.act("set", value)
     }
   }
@@ -84,7 +85,7 @@ Column {
         width: parent.width - Style.space(128)
         minimum: parent.datum.min || 0; maximum: parent.datum.max || 100
         value: parent.datum.value || 0; integer: true
-        trackColor: Util.alpha(Color.popups.text, 0.12); fillColor: Color.accent; knobColor: Color.popups.text
+        trackColor: Util.alpha(Commons.Color.popups.text, 0.12); fillColor: Commons.Color.accent; knobColor: Commons.Color.popups.text
         onReleased: value => root.act("slider", value, parent.index)
       }
       Label { width: Style.space(55); text: String(Math.round(parent.datum.value || 0)); horizontalAlignment: Text.AlignRight }
@@ -121,10 +122,10 @@ Column {
   Rectangle {
     visible: root.kind === "level"
     width: parent.width; height: Style.space(6); radius: height / 2
-    color: Util.alpha(Color.popups.text, 0.1)
-    Rectangle { width: parent.width * Math.max(0, Math.min(1, (root.reading || 0) / (root.rowState.max || 1))); height: parent.height; radius: parent.radius; color: Color.accent }
+    color: Util.alpha(Commons.Color.popups.text, 0.1)
+    Rectangle { width: parent.width * Math.max(0, Math.min(1, (root.reading || 0) / (root.rowState.max || 1))); height: parent.height; radius: parent.radius; color: Commons.Color.accent }
   }
-  Label { visible: root.kind === "label"; width: parent.width; text: String(root.reading === undefined ? "" : root.reading); color: Color.accent }
+  Label { visible: root.kind === "label"; width: parent.width; text: String(root.reading === undefined ? "" : root.reading); color: Commons.Color.accent }
   Flow {
     width: parent.width
     spacing: Style.space(6)

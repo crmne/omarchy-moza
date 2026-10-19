@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 
 // A single-line text field built from key events instead of Qt's text input
@@ -23,8 +24,8 @@ Item {
   // When set, each typed character must match this expression.
   property var allowedCharacters: null
   property int horizontalAlignment: Text.AlignLeft
-  property color foreground: Color.popups.text
-  property color accent: Color.accent
+  property color foreground: Commons.Color.popups.text
+  property color accent: Commons.Color.accent
   property real horizontalPadding: Style.spacing.controlPaddingX
   property real verticalPadding: Style.spacing.inputPaddingY
   property alias font: label.font

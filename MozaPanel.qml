@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls as Controls
 import Quickshell
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "controls" as UI
 
@@ -47,7 +48,7 @@ Panel {
         width: parent.width
         spacing: Style.space(12)
         UI.Label { text: "MOZA"; font.pixelSize: Style.space(22); font.bold: true }
-        UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.needsSetup ? "Setup required" : root.service && root.service.rev.connected ? "●  Connected" : "○  Disconnected"; color: Color.accent; font.pixelSize: Style.font.bodySmall }
+        UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.needsSetup ? "Setup required" : root.service && root.service.rev.connected ? "●  Connected" : "○  Disconnected"; color: Commons.Color.accent; font.pixelSize: Style.font.bodySmall }
       }
       UI.Label { id: subtitle; anchors.top: heading.bottom; anchors.topMargin: Style.space(4); text: "Boxflat settings · moza-rev telemetry"; font.pixelSize: Style.font.caption; opacity: 0.5 }
       Controls.ScrollView {
@@ -88,7 +89,7 @@ Panel {
           width: parent.width
           text: !root.service || !root.service.ready ? (root.service && root.service.error ? root.service.error : "Starting MOZA…") : root.service.error || root.service.message
           visible: text !== "" && (!root.service || !root.service.needsSetup)
-          color: root.service && root.service.error ? Color.urgent : Color.accent
+          color: root.service && root.service.error ? Commons.Color.urgent : Commons.Color.accent
           font.pixelSize: Style.font.bodySmall
         }
         Flow {
@@ -136,7 +137,7 @@ Panel {
               spacing: Style.space(18)
               Row {
                 width: parent.width
-                UI.Label { width: parent.width - addButton.width; text: groupCard.groupData.title || ""; color: Color.accent; font.pixelSize: Style.font.caption; font.bold: true; font.capitalization: Font.AllUppercase; font.letterSpacing: 1 }
+                UI.Label { width: parent.width - addButton.width; text: groupCard.groupData.title || ""; color: Commons.Color.accent; font.pixelSize: Style.font.caption; font.bold: true; font.capitalization: Font.AllUppercase; font.letterSpacing: 1 }
                 Button { id: addButton; visible: !!groupCard.groupData.add; text: "+"; focusable: true; onClicked: root.service.act(groupCard.groupData.add, "click") }
               }
               UI.Label { visible: text !== ""; width: parent.width; text: groupCard.groupData.description || ""; opacity: 0.55; font.pixelSize: Style.font.bodySmall }
