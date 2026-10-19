@@ -27,6 +27,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
 from backend.model import Model
+from backend.pedals import PedalControls
 from boxflat.subscription import SimpleEventDispatcher
 from boxflat import connection_manager
 from boxflat.hid_handler import HidHandler
@@ -168,6 +169,7 @@ class Bridge:
         p["Other"] = OtherSettings(noop, self.cm, self.hid, self.settings, "Omarchy", self, str(BOXFLAT/"data"))
         p["Other"].subscribe("brake-calibration-enabled", p["Pedals"].set_brake_calibration_active)
         p["Pedals"].set_brake_calibration_active(p["Other"].get_brake_valibration_enabled())
+        self.pedals = PedalControls(self.model, p, self.cm, self.hid, self.notice)
         for name, panel in p.items():
             panel.active(1 if demo or name in ["Home", "Presets", "Generic Devices", "Other"] else -2)
         self.cm.subscribe("estop-receive-status", self.cm.set_setting, "base-ffb-disable")
@@ -182,7 +184,9 @@ class Bridge:
     def release(self): pass
     def send_notification(self, key, notification): self.notice("Applied automatic Boxflat preset")
     def withdraw_notification(self, key): pass
-    def notice(self, text): self.message = text
+    def notice(self, text, previous=None):
+        if previous is None or self.message == previous:
+            self.message = text
     def present(self, dialog): self.dialog = dialog
     def close_dialog(self): self.dialog = None; return True
 
@@ -293,6 +297,7 @@ class Bridge:
         try: self.loop.run()
         finally:
             if self.live_timer is not None: GLib.source_remove(self.live_timer)
+            self.pedals.shutdown()
             self.cm.shutdown()
             for device in list(self.cm._serial_devices.values()): device.serial_handler.stop()
             for panel in self.panels.values(): panel.shutdown()

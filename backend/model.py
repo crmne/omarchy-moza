@@ -1,7 +1,7 @@
 """Expose Boxflat's real controls to QML without showing a GTK window.
 
-The original widgets retain their callbacks, conversions, capability checks,
-and calibration state machines. Only their presentation crosses this adapter.
+The original widgets retain their callbacks, conversions and capability checks.
+Pedal workflows are adapted in backend/pedals.py.
 """
 import math
 import re
@@ -37,6 +37,7 @@ class Model:
     def __init__(self):
         self.objects = {}
         self.live_readers = {}
+        self.before_action = lambda widget: None
 
     def key(self, widget):
         key = str(id(widget))
@@ -92,7 +93,7 @@ class Model:
             raise TypeError(f"Unmapped Boxflat control: {type(row).__name__} {value['title']}")
         if isinstance(row, (BoxflatButtonRow, BoxflatButtonLevelRow)):
             value["buttons"] = [dict(id=self.key(b), label=b.get_label(), enabled=b.is_sensitive())
-                                for b in children(row._box) if isinstance(b, Gtk.Button)]
+                                for b in children(row._box) if isinstance(b, Gtk.Button) and b.get_visible()]
         return value
 
     def groups(self, widget):
@@ -140,6 +141,7 @@ class Model:
         widget = self.objects.get(str(key))
         if widget is None or not widget.is_sensitive():
             raise ValueError("This control is unavailable. Refresh the panel.")
+        self.before_action(widget)
         if action == "click":
             if isinstance(widget, Gtk.Button): widget.emit("clicked")
             elif isinstance(widget, Adw.ActionRow) and widget.get_activatable(): widget.emit("activated")

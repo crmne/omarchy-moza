@@ -31,6 +31,26 @@ and preset dialogs. Standalone tray/window/autostart management is replaced by
 Omarchy's host. Raw custom-command developer mode is not exposed. Firmware
 updates are not implemented upstream and are not claimed here.
 
+`backend/pedals.py` adapts the pedal limit and calibration button callbacks and
+groups live pedal input, calibration and range controls at the top of each pedal tab. Home
+keeps idle input rows compact and shows instructions during limit capture.
+Limit capture reads and saves the old range, writes and reads back
+0–100%, then waits for an explicit Save before sampling serial output. The
+opposite limit is preserved; cancellation, timeout, failure and orderly backend
+shutdown restore the old range. A single worker keeps serial waits off the GTK
+loop and prevents overlapping manual settings edits. Automatic presets should
+not run during pedal setup; perform it outside a driving session.
+Calibration shows a three-second released-pedal preparation followed by the
+existing seven-second recording interval with live HID feedback. The live bar
+stays visible afterward; success messages expire after eight seconds, while
+errors remain. Stop is sent even on cancellation or exceptions. The protocol has no
+readable calibration-completion acknowledgement; the result asks the user to
+test travel. Sensor calibration cannot be rolled back by restoring range limits.
+Boxflat's capability checks and brake-calibration opt-in remain in effect.
+Regression tests simulate clipped serial output, repeat a low-to-high maximum
+capture, and exercise missing replies, cancellation, timing, no movement, shutdown
+and the actual GTK-button-to-worker path. They do not validate pedal firmware.
+
 Tests cover 175 top-level controls, nested preset switches, actual rotation
 conversion callbacks, invalid edits, preset names and preset dialogs. Rust
 tests cover threshold boundaries, disabled lights and full-width masks.

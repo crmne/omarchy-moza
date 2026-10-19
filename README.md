@@ -115,8 +115,38 @@ before starting the plugin to import them. Device settings are read from hardwar
 
 The plugin runs while enabled, including with the panel closed. Boxflat's
 standalone tray, window and autostart options are replaced by the plugin host.
-Calibration, resets and profile loading retain Boxflat's behaviour. Colour
+Resets and profile loading retain Boxflat's behaviour. Colour
 fields accept `#RRGGBB`; modern-wheel colours also update the telemetry palette.
+
+### Pedal calibration and limits
+
+On **Home**, choose **Set max**, wait for the full range to reopen, then hold
+the pedal at the position you want to count as fully pressed and choose
+**Save max**. You can increase a previously shortened maximum, including when
+the input bar already reads 100%. **Set min** works the same way at the released
+position. Saving changes only the selected limit. **Cancel**, a 30-second
+timeout, or closing the backend restores the previous limits. Keep the panel
+open until the result appears, and adjust pedals outside a driving session.
+
+Home shows instructions only while setting a limit. Each **Pedals** tab starts
+with **Calibration and range**, followed by **Response curve** and **Other settings**.
+The first row is a live input bar and percentage for that pedal, so you can
+check the released and fully pressed positions without returning to Home.
+
+On **Pedals**, choose the pedal and **Calibrate**. Keep it released during the
+three-second preparation countdown. During the seven-second **Recording**
+countdown, press it fully and release it. The instructions and current input
+stay visible while recording. Successful results clear after eight seconds;
+errors stay visible. If no movement was
+detected, the panel asks you to retry. Completed recording resets Range Start
+and Range End to 0–100%, so an old shortened limit does not constrain the new
+range. Curves, direction and brake sensor ratio are preserved. Brake calibration
+still requires Boxflat's opt-in under **Other** for supported pedals.
+
+After calibration, check that releasing the pedal reads 0% and fully pressing
+it reads 100%. The recording result is not a firmware acknowledgement of sensor
+calibration. Cancelling after recording has begun restores the range limits but
+cannot undo sensor calibration, so run calibration again before driving.
 
 Number and text fields read typed keys only and never the clipboard, so there
 is no paste. Focusing a number selects it for replacement; Up/Down or the

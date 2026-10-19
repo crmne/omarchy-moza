@@ -10,6 +10,7 @@ Column {
   readonly property var rowState: service ? service.rows[layout.id] || ({}) : ({})
   readonly property var reading: rowState.live && service ? service.liveValues[layout.id] : rowState.value
   readonly property string kind: rowState.kind || "label"
+  readonly property real levelFraction: Math.max(0, Math.min(1, (reading || 0) / (rowState.max || 1)))
   property bool expanded: false
   width: parent.width
   visible: rowState.visible !== false
@@ -22,10 +23,18 @@ Column {
     width: parent.width
     spacing: Style.space(12)
     Column {
-      width: parent.width - (switchControl.visible ? switchControl.width + parent.spacing : 0)
+      width: parent.width - (switchControl.visible ? switchControl.width + parent.spacing : 0) - (levelValue.visible ? levelValue.width + parent.spacing : 0)
       spacing: Style.space(3)
       Label { width: parent.width; text: root.rowState.title || ""; font.bold: true; visible: text !== "" }
       Label { width: parent.width; text: root.rowState.subtitle || ""; font.pixelSize: Style.font.bodySmall; opacity: 0.55; visible: text !== "" }
+    }
+    Label {
+      id: levelValue
+      visible: root.kind === "level"
+      width: Style.space(60)
+      text: Math.round(root.levelFraction * 100) + "%"
+      horizontalAlignment: Text.AlignRight
+      color: Commons.Color.accent
     }
     UI.ToggleSwitch {
       id: switchControl
@@ -123,7 +132,7 @@ Column {
     visible: root.kind === "level"
     width: parent.width; height: Style.space(6); radius: height / 2
     color: Util.alpha(Commons.Color.popups.text, 0.1)
-    Rectangle { width: parent.width * Math.max(0, Math.min(1, (root.reading || 0) / (root.rowState.max || 1))); height: parent.height; radius: parent.radius; color: Commons.Color.accent }
+    Rectangle { width: parent.width * root.levelFraction; height: parent.height; radius: parent.radius; color: Commons.Color.accent }
   }
   Label { visible: root.kind === "label"; width: parent.width; text: String(root.reading === undefined ? "" : root.reading); color: Commons.Color.accent }
   Flow {
