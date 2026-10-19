@@ -13,9 +13,11 @@ Screenshots use simulated RPM and input values in an isolated capture host.
 They do not represent a live game or additional hardware testing.
 
 <details>
-<summary>Rev lights, live inputs and wheelbase settings</summary>
+<summary>Rev lights, pedal calibration, live inputs and wheelbase settings</summary>
 
 ![Rev lights at a simulated 6,420 RPM](screenshots/rev-lights.png)
+
+![Pedal input, calibration and range controls](screenshots/pedals.png)
 
 ![Simulated steering and pedal inputs](screenshots/inputs.png)
 
@@ -26,14 +28,18 @@ They do not represent a live game or additional hardware testing.
 ## Features
 
 - Live RPM, configurable first/full thresholds (80–97% by default), LED count,
-  on/off, and a hardware sweep test. Modern wheels also get saved colors and
-  brightness. Changes apply without restarting.
+  on/off, and a hardware sweep test. A separate shift cue flashes at 95% of
+  redline and 10 flashes per second by default, with adjustable timing and rate.
+  Modern wheels also get saved colors and brightness. Changes apply without
+  restarting.
 - Wheelbase rotation, force feedback, damping, friction, inertia, protection,
   equalizer, force curve, soft limits, temperatures, and startup sound.
 - Modern and legacy wheel settings: paddles, encoders, joystick modes,
   combinations, calibration, RPM/button colours, brightness, idle effects.
 - Pedals, dashboards, H-pattern and sequential shifters, handbrakes,
   multifunction stalks and universal hubs, using Boxflat's existing controls.
+- Guided pedal calibration beside live input and range controls. Previously
+  shortened pedal limits can be expanded again from Home.
 - Boxflat presets with device selection, default profiles and automatic
   application when a game process starts. Preset dialogs stay inside the panel.
 - Generic HID detection fixes and Boxflat's device-specific input behaviour.

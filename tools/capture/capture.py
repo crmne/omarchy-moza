@@ -30,7 +30,7 @@ def fixtures():
                              redline=6800, mask=255, test=False, unavailableListeners=[])
     bridge.opened = True
     result = {}
-    for name in ["Home", "Base", "Rev lights"]:
+    for name in ["Home", "Base", "Pedals", "Rev lights"]:
         bridge.focus = name
         doc = bridge.document()
         for page in doc["pages"]:
@@ -40,6 +40,11 @@ def fixtures():
                     if row["title"] == "Steering position": row["value"] = "−18°"
                     if row["title"] == "E-Stop status": row["visible"] = False
                     if row["title"] == "Wheel Rotation Angle": row["value"] = 900
+                    if name == "Pedals" and row["title"] == "Range End": row["value"] = 100
+                    if name == "Pedals" and row["kind"] == "equalizer":
+                        row["value"] = 0
+                        for index, slider in enumerate(row["sliders"], start=1):
+                            slider["value"] = index * 20
                     if row["title"] in ["Throttle input", "Brake input", "Clutch input"]:
                         row["value"] = int(row["max"] * {"Throttle input": .72, "Brake input": .26, "Clutch input": .08}[row["title"]])
         doc["panels"] = [dict(p, connected=p["name"] in ["Home", "Base", "Wheel", "Pedals", "Presets", "Generic Devices", "Other"]) for p in doc["panels"]]
@@ -120,7 +125,7 @@ def main():
             proc = subprocess.Popen(["qs", "-p", str(shell)], env=env, stdout=stream, stderr=subprocess.STDOUT)
             try:
                 wait_for(lambda: call("ready") == "true", "capture host")
-                for page, filename in [("Home", "inputs.png"), ("Rev lights", "rev-lights.png"), ("Base", "base.png")]:
+                for page, filename in [("Home", "inputs.png"), ("Rev lights", "rev-lights.png"), ("Pedals", "pedals.png"), ("Base", "base.png")]:
                     print(call("displayPage", page), file=sys.stderr, flush=True)
                     time.sleep(.7)
                     path = output / filename

@@ -45,3 +45,8 @@ shadows. No UI elements are painted over the captured controls.
 
 `first-run.png` shows the real first-run panel with simulated missing dependencies.
 The capture also verifies that setup remains reachable without a connected wheel.
+
+`pedals.png` shows the Throttle tab with live input, calibration and range
+controls together, with a simulated 0–100% range and linear response curve.
+`rev-lights.png` includes the separate shift-flash threshold
+and rate. These release screenshots use the same isolated demo model.
