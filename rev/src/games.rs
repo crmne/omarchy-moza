@@ -202,7 +202,8 @@ const BLINK: Duration = Duration::from_millis(600);
 
 impl Parser for BeamNg {
     fn parse(&mut self, b: &[u8], now: Instant) -> Option<Telemetry> {
-        if !matches!(b.len(), 92 | 96) {
+        // 92 bytes from LFS, 96 or more from BeamNG; the fields used come first.
+        if b.len() < 92 {
             return None;
         }
         let rpm = f32_at(b, 16);
@@ -409,5 +410,8 @@ mod tests {
         );
         assert!(p.parse(&outgauge(0.0, 1, 0, 0.0), later).is_none());
         assert!(p.parse(&[0; 64], later).is_none());
+        let mut longer = outgauge(3000.0, 4, 0, 0.0);
+        longer.extend_from_slice(&[0; 32]);
+        assert!(p.parse(&longer, later).is_some());
     }
 }
