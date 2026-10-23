@@ -45,30 +45,6 @@ Column {
       font.pixelSize: Style.font.bodySmall; opacity: 0.55
     }
   }
-  Card {
-    visible: root.service.steam.games.length > 0
-    Label { text: "ACC AND LE MANS ULTIMATE"; color: Commons.Color.accent; font.pixelSize: Style.font.caption; font.bold: true; font.letterSpacing: 1.1 }
-    Label {
-      width: parent.width; font.pixelSize: Style.font.bodySmall; opacity: 0.55
-      text: "These games share telemetry only inside Proton. A small helper starts with the game when its Steam launch options include it. For Le Mans Ultimate, plugins must also be enabled."
-    }
-    Repeater {
-      model: root.service.steam.games
-      Label { required property var modelData; width: parent.width; text: (modelData.ready ? "●  " : "○  ") + modelData.name + (modelData.ready ? " · ready" : " · not set up") }
-    }
-    UI.Button {
-      visible: root.service.steam.games.some(game => !game.ready)
-      text: root.service.steam.steamRunning ? "Close Steam to set up" : "Set up launch options"
-      enabled: !root.service.steam.steamRunning
-      bordered: true; focusable: true
-      onClicked: root.service.send({op: "steam_setup"})
-    }
-    Label {
-      width: parent.width; visible: root.service.steam.games.some(game => !game.ready)
-      text: "Adds the helper to each game's launch options, keeping your own, and enables LMU's plugins. Backups are saved next to each file. Steam must be closed, because it rewrites these settings when it exits."
-      font.pixelSize: Style.font.bodySmall; opacity: 0.55
-    }
-  }
   Row {
     spacing: Style.space(4)
     Repeater {

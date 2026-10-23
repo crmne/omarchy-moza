@@ -197,9 +197,8 @@ helper, `bin/omarchy-moza-shm.exe`, that Proton starts next to the game and
 stops with it. It only reads the game's telemetry and sends it to
 `127.0.0.1:9998`. Its source is in `shm-bridge/`.
 
-**Automatic setup:** close Steam, open **Vibration module**, and choose
-**Set up launch options**. The panel lists the installed games and whether each
-is ready. It adds the helper to each game's launch options, keeping any you
+**Automatic setup:** while either game is installed but not set up, the top of
+the panel says so. Close Steam and choose **Set up**. It adds the helper to each game's launch options, keeping any you
 already have, and enables plugins in Le Mans Ultimate's settings. A backup of
 each changed file is saved next to it. Steam must be closed because it rewrites
 launch options when it exits. The panel leaves the files alone if Steam's

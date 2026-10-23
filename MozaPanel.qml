@@ -52,6 +52,24 @@ Panel {
         UI.Label { text: "MOZA"; font.pixelSize: Style.space(22); font.bold: true }
         UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.needsSetup ? "Setup required" : root.service && (root.service.rev.connected || root.moduleConnected) ? "●  Connected" : "○  Disconnected"; color: Commons.Color.accent; font.pixelSize: Style.font.bodySmall }
       }
+      // ACC and LMU need a launch option before they send telemetry.
+      Row {
+        readonly property var pending: root.service && root.service.steam ? root.service.steam.games.filter(game => !game.ready) : []
+        visible: pending.length > 0
+        anchors.right: parent.right; anchors.verticalCenter: heading.verticalCenter
+        spacing: Style.space(10)
+        UI.Label {
+          anchors.verticalCenter: parent.verticalCenter
+          text: parent.pending.map(game => game.id === "805550" ? "ACC" : "LMU").join(" and ") + " not set up for telemetry"
+          font.pixelSize: Style.font.bodySmall; opacity: 0.7
+        }
+        Button {
+          text: root.service && root.service.steam.steamRunning ? "Close Steam to set up" : "Set up"
+          enabled: !!root.service && !root.service.steam.steamRunning
+          bordered: true; focusable: true; fontSize: Style.font.bodySmall
+          onClicked: root.service.send({op: "steam_setup"})
+        }
+      }
       UI.Label { id: subtitle; anchors.top: heading.bottom; anchors.topMargin: Style.space(4); text: "Boxflat settings · moza-rev telemetry"; font.pixelSize: Style.font.caption; opacity: 0.5 }
       Controls.ScrollView {
         id: nav

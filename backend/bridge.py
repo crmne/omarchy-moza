@@ -238,8 +238,8 @@ class Bridge:
         return config
 
     def steam_state(self, force=False):
-        # Reading Steam's config is cheap but not free; only for this page.
-        if self.focus == "Vibration module" and (force or time.monotonic() - self.steam_checked > 2):
+        # Reading Steam's config is cheap but not free: only while the panel is open.
+        if self.opened and (force or time.monotonic() - self.steam_checked > 2):
             try: self.steam_status = self.steam.status()
             except (OSError, ValueError) as e: self.steam_status = dict(games=[], steamRunning=False, error=str(e))
             self.steam_checked = time.monotonic()

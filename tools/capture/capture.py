@@ -50,7 +50,7 @@ def fixtures():
                     if row["title"] in ["Throttle input", "Brake input", "Clutch input"]:
                         row["value"] = int(row["max"] * {"Throttle input": .72, "Brake input": .26, "Clutch input": .08}[row["title"]])
         doc["panels"] = [dict(p, connected=p["name"] in ["Home", "Base", "Wheel", "Pedals", "Presets", "Generic Devices", "Other"]) for p in doc["panels"]]
-        if name == "Vibration module":
+        if name == "Home":
             doc["steam"] = dict(steamRunning=False, games=[
                 dict(id="805550", name="Assetto Corsa Competizione", ready=False),
                 dict(id="2399420", name="Le Mans Ultimate", ready=True)])
