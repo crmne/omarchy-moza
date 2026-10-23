@@ -13,7 +13,7 @@ Screenshots use simulated RPM and input values in an isolated capture host.
 They do not represent a live game or additional hardware testing.
 
 <details>
-<summary>Rev lights, pedal calibration, live inputs and wheelbase settings</summary>
+<summary>Rev lights, pedal calibration, live inputs, wheelbase and pedal vibration settings</summary>
 
 ![Rev lights at a simulated 6,420 RPM](screenshots/rev-lights.png)
 
@@ -22,6 +22,8 @@ They do not represent a live game or additional hardware testing.
 ![Simulated steering and pedal inputs](screenshots/inputs.png)
 
 ![Wheelbase settings](screenshots/base.png)
+
+![Pedal vibration settings](screenshots/vibration.png)
 
 </details>
 

@@ -17,7 +17,7 @@ class ProvenanceTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / "tools").mkdir()
         shutil.copy(ROOT / "tools/binary-provenance.sh", self.root / "tools")
-        for name in ("bin/omarchy-moza", "rev/Cargo.lock", "vendor/boxflat.lock.json"):
+        for name in ("bin/omarchy-moza", "bin/omarchy-moza-shm.exe", "rev/Cargo.lock", "vendor/boxflat.lock.json"):
             path = self.root / name
             path.parent.mkdir(exist_ok=True)
             path.write_text("test fixture\n")

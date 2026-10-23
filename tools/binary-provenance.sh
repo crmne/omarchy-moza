@@ -12,6 +12,7 @@ echo 'builder_image=archlinux@sha256:84cd9ef000b3cff245ec028e87965b84724f4bf1cc6
 echo 'source_date_epoch=1788307200'
 echo 'verified_reproducible_builds=2'
 echo 'verified_bundled_binary=true'
-sha256sum bin/omarchy-moza rev/Cargo.lock vendor/boxflat.lock.json
-pacman -Q rust gcc gcc-libs binutils glibc git python pkgconf systemd-libs
+sha256sum bin/omarchy-moza bin/omarchy-moza-shm.exe rev/Cargo.lock vendor/boxflat.lock.json
+pacman -Q rust gcc gcc-libs binutils glibc git python pkgconf systemd-libs \
+  mingw-w64-gcc mingw-w64-binutils mingw-w64-crt mingw-w64-headers
 rustc --version --verbose

@@ -292,7 +292,7 @@ fn main() -> io::Result<()> {
         ("Forza :9999", games::spawn(9999, games::Forza, tx.clone())),
         (
             "ACC / LMU bridge :9998",
-            games::spawn(shm::PORT, shm::Shm::default(), tx.clone()),
+            games::spawn_local(shm::PORT, shm::Shm::default(), tx.clone()),
         ),
         (
             "Assetto Corsa :9997",

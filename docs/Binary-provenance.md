@@ -1,6 +1,12 @@
-# Bundled Rust executable
+# Bundled executables
 
-`bin/omarchy-moza` is the x86-64 Linux build of `rev/`. The moza-rev revision is
+`bin/omarchy-moza` is the x86-64 Linux build of `rev/`. `bin/omarchy-moza-shm.exe`
+is the Windows build of `shm-bridge/omarchy-moza-shm.c`, a 19 KB helper that
+Proton runs next to Assetto Corsa Competizione or Le Mans Ultimate when the
+user adds it to the game's launch options. It only reads the games' shared
+memory and sends it to `127.0.0.1:9998`. It is built with mingw-w64 from the
+same pinned container, twice, and compared with the committed file; it is
+attested and released alongside the Linux executable. The moza-rev revision is
 pinned in Cargo.toml; Cargo.lock records the dependency graph. Full source and
 license notices are included. Python source is tracked separately as described
 in [Upstreams.md](Upstreams.md).

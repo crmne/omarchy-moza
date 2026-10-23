@@ -35,6 +35,7 @@ jobs:
           test -s "docs/releases/$version.md"
           grep -Fx "source_commit=$GITHUB_SHA" binary-provenance.txt
           gh attestation verify bin/omarchy-moza --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
+          gh attestation verify bin/omarchy-moza-shm.exe --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
           gh attestation verify binary-provenance.txt --repo "$GITHUB_REPOSITORY" --source-digest "$GITHUB_SHA"
       - name: Publish plugin and provenance
         env:
@@ -45,5 +46,5 @@ jobs:
           archive="omarchy-moza-$version.tar.gz"
           git archive --format=tar.gz --prefix=omarchy-moza/ HEAD > "$archive"
           sha256sum "$archive" > "$archive.sha256"
-          gh release create "$GITHUB_REF_NAME" "$archive" "$archive.sha256" bin/omarchy-moza bin/omarchy-moza.sha256 binary-provenance.txt \
+          gh release create "$GITHUB_REF_NAME" "$archive" "$archive.sha256" bin/omarchy-moza bin/omarchy-moza.sha256 bin/omarchy-moza-shm.exe bin/omarchy-moza-shm.exe.sha256 binary-provenance.txt \
             --verify-tag --title "MOZA for Omarchy $version" --notes-file "docs/releases/$version.md"

@@ -17,9 +17,19 @@ pub trait Parser: Send + 'static {
     fn parse(&mut self, bytes: &[u8], now: Instant) -> Option<Telemetry>;
 }
 
-pub fn spawn(port: u16, mut parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
+pub fn spawn(port: u16, parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
     // AMS2 broadcasts, so listen on every address like moza-rev does.
-    let Ok(socket) = UdpSocket::bind(("0.0.0.0", port)) else {
+    listen(("0.0.0.0", port), parser, tx)
+}
+
+/// For senders on this computer only, such as the Proton helper.
+pub fn spawn_local(port: u16, parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
+    listen(("127.0.0.1", port), parser, tx)
+}
+
+fn listen(address: (&str, u16), mut parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
+    let port = address.1;
+    let Ok(socket) = UdpSocket::bind(address) else {
         return false;
     };
     thread::Builder::new()
