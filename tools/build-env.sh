@@ -6,7 +6,7 @@ test -f /.dockerenv
 # shellcheck disable=SC2016
 printf '%s\n' 'Server = https://archive.archlinux.org/repos/2026/09/02/$repo/os/$arch' > /etc/pacman.d/mirrorlist
 pacman -Syy --noconfirm
-pacman -S --noconfirm --needed rust gcc binutils git python pkgconf systemd-libs
+pacman -S --noconfirm --needed rust gcc binutils git python pkgconf systemd-libs mingw-w64-gcc
 test "$(pacman -Q rust)" = 'rust 1:1.98.0-1'
 test "$(pacman -Q gcc)" = 'gcc 16.2.1+r23+gd564253eb6c8-1'
 test "$(pacman -Q gcc-libs)" = 'gcc-libs 16.2.1+r23+gd564253eb6c8-1'
@@ -16,3 +16,7 @@ test "$(pacman -Q git)" = 'git 2.55.0-1'
 test "$(pacman -Q python)" = 'python 3.14.7-1'
 test "$(pacman -Q pkgconf)" = 'pkgconf 3.0.6-1'
 test "$(pacman -Q systemd-libs)" = 'systemd-libs 261.2-1'
+test "$(pacman -Q mingw-w64-gcc)" = 'mingw-w64-gcc 16.2.0-2'
+test "$(pacman -Q mingw-w64-binutils)" = 'mingw-w64-binutils 2.47-1'
+test "$(pacman -Q mingw-w64-crt)" = 'mingw-w64-crt 14.0.0-1'
+test "$(pacman -Q mingw-w64-headers)" = 'mingw-w64-headers 14.0.0-1'

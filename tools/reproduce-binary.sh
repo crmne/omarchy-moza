@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# --output copies the two matching rebuilds; default also verifies the shipped ELF.
+# --output copies the matching rebuilds; default also verifies the shipped binaries.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-moza"
@@ -16,10 +16,19 @@ for build in a b; do
     mbx build --release --locked --manifest-path rev/Cargo.toml --target-dir "$build_root/$build"
 done
 cmp "$build_root/a/release/omarchy-moza" "$build_root/b/release/omarchy-moza"
+# The Proton helper for ACC and LMU: a static PE without a link timestamp.
+for build in a b; do
+  x86_64-w64-mingw32-gcc -std=c11 -O2 -Wall -Wextra -Werror -s -static -mwindows \
+    -ffile-prefix-map="$PWD=/source" -Wl,--no-insert-timestamp \
+    -o "$build_root/$build/omarchy-moza-shm.exe" shm-bridge/omarchy-moza-shm.c -lws2_32
+done
+cmp "$build_root/a/omarchy-moza-shm.exe" "$build_root/b/omarchy-moza-shm.exe"
 if [[ "${1:-}" == --output && $# == 2 ]]; then
   install -Dm755 "$build_root/a/release/omarchy-moza" "$2"
+  install -Dm755 "$build_root/a/omarchy-moza-shm.exe" "$(dirname "$2")/omarchy-moza-shm.exe"
 else
   test $# == 0
   cmp "$build_root/a/release/omarchy-moza" bin/omarchy-moza
-  sha256sum --check --strict bin/omarchy-moza.sha256
+  cmp "$build_root/a/omarchy-moza-shm.exe" bin/omarchy-moza-shm.exe
+  sha256sum --check --strict bin/omarchy-moza.sha256 bin/omarchy-moza-shm.exe.sha256
 fi

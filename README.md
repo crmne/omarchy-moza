@@ -179,12 +179,26 @@ Effects follow live telemetry, so each one needs its game to report the input:
 | Automobilista 2 / Project CARS 2 | All |
 | Forza (Dash format) | All except ABS and TC, which Forza does not report |
 | BeamNG.drive | Engine, gear shift, ABS, TC, brake threshold, bite point |
+| Assetto Corsa Competizione, Le Mans Ultimate | All (needs the launch option below) |
 | Wreckfest 2, Codemasters games | Engine only |
 
 AMS2 does not report tyre sizes, so wheel spin and lockup start after the
 plugin has seen each car coast straight above 36 km/h for a moment. Choose
 **Dash** as Forza's Data Out format; Sled has no pedal inputs or gear.
 BeamNG's OutGauge has no wheel slip or suspension data.
+
+ACC and LMU publish telemetry only as Windows shared memory inside their
+Proton prefix. The plugin ships a small helper, `bin/omarchy-moza-shm.exe`,
+that Proton starts next to the game and stops with it. Set the game's Steam
+launch options to (with your own home directory):
+
+```
+PROTON_REMOTE_DEBUG_CMD=/home/you/.config/omarchy/plugins/crmne.moza/bin/omarchy-moza-shm.exe %command%
+```
+
+In LMU, also enable **Settings → Gameplay → Enable Plugins** and restart it.
+The helper only forwards data to `127.0.0.1:9998`; source and offsets are in
+`shm-bridge/` and `rev/src/shm.rs`.
 
 Effects stop 300 ms after telemetry stops and when the plugin exits. A module
 connected behind a wheelbase is not supported yet; use its USB port. Assetto

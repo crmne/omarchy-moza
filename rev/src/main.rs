@@ -4,6 +4,7 @@ mod assetto_corsa;
 mod devices;
 mod games;
 mod haptics;
+mod shm;
 mod telemetry;
 mod wire;
 
@@ -289,6 +290,10 @@ fn main() -> io::Result<()> {
             games::spawn(4444, games::BeamNg::default(), tx.clone()),
         ),
         ("Forza :9999", games::spawn(9999, games::Forza, tx.clone())),
+        (
+            "ACC / LMU bridge :9998",
+            games::spawn(shm::PORT, shm::Shm::default(), tx.clone()),
+        ),
         (
             "Assetto Corsa :9997",
             assetto_corsa::spawn(9997, tx.clone()),
