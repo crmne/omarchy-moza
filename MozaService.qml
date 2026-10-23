@@ -11,6 +11,7 @@ Item {
   property var panels: []
   property var rev: ({})
   property var haptics: null
+  property var steam: ({games: [], steamRunning: false})
   property var config: ({start: 80, full: 97, flash: 95, flash_hz: 10, leds: 10, enabled: true, colors: ["#00ff00", "#ffff00", "#ff0000"], brightness: 100})
   property string error: ""
   property string message: ""
@@ -62,6 +63,7 @@ Item {
     ready = true
     config = data.config || config
     haptics = data.haptics || haptics
+    steam = data.steam || steam
     error = data.error || rev.error || ""; message = data.message || ""
     dialog = !!data.dialog; demo = !!data.demo
     var rowState = {}, groupState = {}

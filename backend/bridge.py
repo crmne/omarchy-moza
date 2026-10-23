@@ -29,6 +29,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
 from backend.model import Model
 from backend.pedals import PedalControls
+from backend import steam
 from boxflat.subscription import SimpleEventDispatcher
 from boxflat import connection_manager
 from boxflat.hid_handler import HidHandler
@@ -139,6 +140,10 @@ class Bridge:
         saved = self.settings.read_setting("rev")
         if self.valid_rev(saved): self.rev_config.update(saved)
         saved_haptics = self.settings.read_setting("haptics")
+        helper = ROOT / "bin/omarchy-moza-shm.exe"
+        # Demo mode never reads the real Steam folder.
+        self.steam = steam.Setup(helper, home=(os.environ.get("MOZA_STEAM_HOME") or "/nonexistent") if demo else None)
+        self.steam_status, self.steam_checked = dict(games=[], steamRunning=False), 0.0
         self.rev = Rev(self.rev_config, demo, saved_haptics if isinstance(saved_haptics, dict) else None,
                        lambda config: GLib.idle_add(self.save_haptics, config))
         self.last_rev = dict(self.rev.status)
@@ -232,6 +237,14 @@ class Bridge:
         config[pedal][effect][key] = value
         return config
 
+    def steam_state(self, force=False):
+        # Reading Steam's config is cheap but not free; only for this page.
+        if self.focus == "Vibration module" and (force or time.monotonic() - self.steam_checked > 2):
+            try: self.steam_status = self.steam.status()
+            except (OSError, ValueError) as e: self.steam_status = dict(games=[], steamRunning=False, error=str(e))
+            self.steam_checked = time.monotonic()
+        return self.steam_status
+
     def hold(self): pass
     def release(self): pass
     def send_notification(self, key, notification): self.notice("Applied automatic Boxflat preset")
@@ -253,7 +266,7 @@ class Bridge:
                 for page in pages: page["groups"] = [g for g in page["groups"] if g["title"] != "Background settings"]
         return dict(panels=[dict(name=name, connected=panel._active) for name,panel in self.panels.items()],
                     pages=pages, dialog=bool(self.dialog), rev=self.rev.status,
-                    config=self.rev_config, haptics=self.rev.haptics,
+                    config=self.rev_config, haptics=self.rev.haptics, steam=self.steam_state(),
                     error=self.error, message=self.message, demo=self.demo)
 
     def publish_live(self):
@@ -320,6 +333,10 @@ class Bridge:
                 self.rev.send(dict(op="configure", config=config))
             elif op == "test": self.rev.send(dict(op="test"))
             elif op == "haptics": self.rev.send(dict(op="haptics", config=self.haptic_change(self.rev.haptics, request)))
+            elif op == "steam_setup":
+                changed = self.steam.apply()
+                self.notice("Set up " + " and ".join(changed) + ". Start the game from Steam." if changed else "Launch options were already set.")
+                self.steam_state(force=True)
             elif op == "haptic_test":
                 if request.get("pedal") not in HAPTIC_PEDALS or request.get("effect") not in HAPTIC_EFFECTS:
                     raise ValueError("Unknown vibration effect")

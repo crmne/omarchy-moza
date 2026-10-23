@@ -189,18 +189,38 @@ plugin has seen each car coast straight above 36 km/h for a moment. Choose
 **Dash** as Forza's Data Out format; Sled has no pedal inputs or gear.
 BeamNG's OutGauge has no wheel slip or suspension data.
 
-ACC and LMU publish telemetry only as Windows shared memory inside their
-Proton prefix. The plugin ships a small helper, `bin/omarchy-moza-shm.exe`,
-that Proton starts next to the game and stops with it. Set the game's Steam
-launch options to (with your own home directory):
+#### Assetto Corsa Competizione and Le Mans Ultimate
+
+These games publish telemetry only as Windows shared memory inside their
+Proton prefix, which Linux programs cannot read. The plugin ships a small
+helper, `bin/omarchy-moza-shm.exe`, that Proton starts next to the game and
+stops with it. It only reads the game's telemetry and sends it to
+`127.0.0.1:9998`. Its source is in `shm-bridge/`.
+
+**Automatic setup:** close Steam, open **Vibration module**, and choose
+**Set up launch options**. The panel lists the installed games and whether each
+is ready. It adds the helper to each game's launch options, keeping any you
+already have, and enables plugins in Le Mans Ultimate's settings. A backup of
+each changed file is saved next to it. Steam must be closed because it rewrites
+launch options when it exits. The panel leaves the files alone if Steam's
+configuration has a format it does not recognise.
+
+**Manual setup:** in Steam, right-click the game, choose **Properties →
+General**, and put this in front of any launch options you have, ending with
+`%command%`:
 
 ```
-PROTON_REMOTE_DEBUG_CMD=/home/you/.config/omarchy/plugins/crmne.moza/bin/omarchy-moza-shm.exe %command%
+PROTON_REMOTE_DEBUG_CMD=$HOME/.config/omarchy/plugins/crmne.moza/bin/omarchy-moza-shm.exe %command%
 ```
 
-In LMU, also enable **Settings → Gameplay → Enable Plugins** and restart it.
-The helper only forwards data to `127.0.0.1:9998`; source and offsets are in
-`shm-bridge/` and `rev/src/shm.rs`.
+For Le Mans Ultimate, also enable **Settings → Gameplay → Enable Plugins** and
+restart the game.
+
+`PROTON_REMOTE_DEBUG_CMD` is an undocumented Proton feature meant for a
+debugger: Proton runs the given Windows program in the game's prefix just
+before the game and stops it afterwards. It works in Valve's Proton 8 to 11 and
+GE-Proton. If Valve removes it, these two games lose vibration and rev lights;
+nothing else is affected.
 
 Effects stop 300 ms after telemetry stops and when the plugin exits. A module
 connected behind a wheelbase is not supported yet; use its USB port. Assetto
