@@ -8,13 +8,21 @@ use crate::{
     telemetry::{Telemetry, Wheels},
 };
 use moza_rev::listeners::EngineState;
-use std::time::Instant;
+use std::{sync::Mutex, time::Instant};
+
+/// What the bridge last sent and whether it was used, for the status line.
+pub static LAST: Mutex<String> = Mutex::new(String::new());
+
+fn note(state: impl Into<String>) {
+    if let Ok(mut last) = LAST.lock() {
+        *last = state.into();
+    }
+}
 
 pub const PORT: u16 = 9998;
 const ACC: u8 = 1;
 const LMU: u8 = 2;
 const ACC_LIVE: i32 = 2;
-const LMU_ON_TRACK: u8 = 3;
 const LMU_PAUSED: u8 = 9;
 
 fn at<const N: usize>(b: &[u8], offset: usize) -> [u8; N] {
@@ -52,8 +60,16 @@ impl Shm {
         let packet = i32_at(p, 0);
         let fresh = self.acc_packet.replace(packet) != Some(packet);
         if status != ACC_LIVE || !fresh || max_rpm <= 0 {
+            note(if status != ACC_LIVE {
+                "ACC: not driving"
+            } else if !fresh {
+                "ACC: paused"
+            } else {
+                "ACC: no RPM limit"
+            });
             return None;
         }
+        note("ACC: live");
         let wheels = |offset: usize| finite([0, 1, 2, 3].map(|w: usize| f32_at(p, offset + w * 4)));
         Some(Telemetry {
             // 0 reverse, 1 neutral, 2 first gear.
@@ -82,17 +98,23 @@ impl Shm {
         if b.len() != 8 + 17 + 1888 {
             return None;
         }
-        let (on_track, phase, realtime, r) = (b[8], b[13], b[20], &b[25..]);
+        let (phase, realtime, r) = (b[13], b[20], &b[25..]);
         let time = f64_at(r, 12);
         let fresh = self.lmu_time.replace(time) != Some(time);
         let redline = f64_at(r, 532);
-        if on_track != LMU_ON_TRACK
-            || phase == LMU_PAUSED
-            || realtime == 0
-            || !fresh
-            || !redline.is_finite()
-            || redline <= 0.0
-        {
+        // appInfo.mOptionsLocation stays 0 while driving in current LMU, so
+        // realtime, the game phase and an advancing clock decide instead.
+        let rejected = if phase == LMU_PAUSED || !fresh {
+            Some("LMU: paused")
+        } else if realtime == 0 {
+            Some("LMU: not driving")
+        } else if !redline.is_finite() || redline <= 0.0 {
+            Some("LMU: no RPM limit")
+        } else {
+            None
+        };
+        note(rejected.unwrap_or("LMU: live"));
+        if rejected.is_some() {
             return None;
         }
         let velocity = [184, 192, 200].map(|o| f64_at(r, o));
@@ -196,7 +218,7 @@ mod tests {
     fn lmu(time: f64) -> Vec<u8> {
         let mut b = vec![0; 8 + 17 + 1888];
         b[..5].copy_from_slice(b"OMZ1\x02");
-        b[8] = LMU_ON_TRACK;
+        b[8] = 0; // mOptionsLocation, unused by LMU while driving
         b[13] = 5; // green flag
         b[20] = 1; // realtime
         let r = 25;
@@ -241,9 +263,9 @@ mod tests {
             "{slip:?}"
         );
         assert_eq!(t.suspension, Some([0.02; 4]));
-        // The clock must advance, and the car must be on track, live and unpaused.
+        // The clock must advance, and the car must be live and unpaused.
         assert!(s.parse(&lmu(10.0), now).is_none());
-        for (offset, value) in [(8, 1), (13, LMU_PAUSED), (20, 0)] {
+        for (offset, value) in [(13, LMU_PAUSED), (20, 0)] {
             let mut b = lmu(11.0 + offset as f64);
             b[offset] = value;
             assert!(s.parse(&b, now).is_none(), "{offset}");

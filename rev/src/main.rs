@@ -509,6 +509,7 @@ fn main() -> io::Result<()> {
                     "redline": last.map_or(0, |u| u.engine.rpm_redline), "mask": mask,
                     "test": test.is_some(), "unavailableListeners": failures,
                     "customColors": wheel.is_some() && modern,
+                    "bridge": shm::LAST.lock().map(|last| last.clone()).unwrap_or_default(),
                     "haptics": {
                         "connected": module.is_some(), "device": module_path,
                         "active": haptics.active(), "testing": haptics.testing(),
