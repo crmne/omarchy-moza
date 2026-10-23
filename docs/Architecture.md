@@ -30,7 +30,9 @@ Invalid limits are rejected without imposing an arbitrary RPM floor.
 The normal two-second telemetry timeout clears stale lights; menus/replays
 send zero RPM. This requires the CSP companion, not AC's legacy UDP option.
 
-Rust owns the base serial port. A proxy delivers replies to Boxflat's connection
+Rust owns the base serial port. It picks the wheelbase with Boxflat's own base
+pattern, so another MOZA serial device, such as the pedal haptic module, is
+never opened as a wheelbase when no base is connected. A proxy delivers replies to Boxflat's connection
 manager. Boxflat's normal serial handlers still manage directly attached
 peripherals. Boxflat remains responsible for discovery, routing, capability
 checks, presets, HID mapping and uinput. The E-Stop callback is retained.

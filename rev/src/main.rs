@@ -1,6 +1,7 @@
 // Game telemetry and wheelbase I/O stay in Rust. Boxflat submits complete
 // settings frames; its Python process never sits in the RPM update path.
 mod assetto_corsa;
+mod devices;
 
 use moza_rev::{
     listeners::{self, EngineState, Update},
@@ -298,7 +299,7 @@ fn main() -> io::Result<()> {
     loop {
         if wheel.is_none() && reconnect.elapsed() > Duration::from_secs(3) {
             reconnect = Instant::now();
-            if let Some(p) = moza::find_wheelbase() {
+            if let Some(p) = devices::find_wheelbase() {
                 match Moza::open(&p, moza::detect_protocol(&p)) {
                     Ok(mut w) => {
                         // Finish protocol setup before sharing the connection
