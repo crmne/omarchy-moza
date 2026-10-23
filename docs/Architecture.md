@@ -21,6 +21,15 @@ are bounded and nonblocking so UI backpressure does not delay LED updates.
 Settings work is limited per loop; queued telemetry uses the newest sample.
 Closing stdin stops the engine and clears the lights.
 
+The same loop drives the pedal haptic module (`rev/src/haptics.rs`) on its own
+USB serial port, found by its 346e:002f ID. Every listener produces one
+`Telemetry` record: moza-rev's listeners fill only the engine, ours add gear,
+speed, pedal inputs, ABS/TC activity, wheel slip and suspension travel. Each
+tick computes the wanted state of all 27 pedal slots and writes only changes
+and keep-alive resends, stops first, at most 12 frames per tick. Rust owns the
+vibration defaults and validation; the bridge sends whole settings and saves
+the copy Rust echoes back. See [pedal haptics](Pedal-haptics.md).
+
 Assetto Corsa uses our `rev/src/assetto_corsa.rs` listener on loopback UDP
 9997 instead of moza-rev's RTCarInfo listener. The CSP companion in
 assetto-corsa-setup sends versioned JSON with current RPM, `rpmLimiter`, and

@@ -13,7 +13,9 @@ Panel {
   property int pageIndex: 0
   readonly property string current: service ? service.current : "Rev lights"
   readonly property var page: service && service.pages.length ? service.pages[Math.min(pageIndex, service.pages.length - 1)] : ({groups: []})
-  visible: !!service && (service.needsSetup || !!service.rev.connected)
+  readonly property bool moduleConnected: !!service && !!service.rev.haptics && !!service.rev.haptics.connected
+  readonly property bool ownPage: current === "Rev lights" || current === "Vibration module"
+  visible: !!service && (service.needsSetup || !!service.rev.connected || moduleConnected)
   onVisibleChanged: if (!visible) root.close()
   implicitWidth: icon.implicitWidth
   implicitHeight: icon.implicitHeight
@@ -29,7 +31,7 @@ Panel {
     bar: root.bar
     anchors.centerIn: parent
     text: "󰓔" // nf-md-steering
-    tooltipText: "MOZA · " + (root.service && root.service.needsSetup ? "Finish setup" : root.service && root.service.rev.connected ? (root.service.rev.game || "Connected") : "Disconnected")
+    tooltipText: "MOZA · " + (root.service && root.service.needsSetup ? "Finish setup" : root.service && (root.service.rev.connected || root.moduleConnected) ? (root.service.rev.game || "Connected") : "Disconnected")
     onPressed: button => { if (button === Qt.LeftButton) root.toggle() }
   }
   KeyboardPanel {
@@ -48,7 +50,7 @@ Panel {
         width: parent.width
         spacing: Style.space(12)
         UI.Label { text: "MOZA"; font.pixelSize: Style.space(22); font.bold: true }
-        UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.needsSetup ? "Setup required" : root.service && root.service.rev.connected ? "●  Connected" : "○  Disconnected"; color: Commons.Color.accent; font.pixelSize: Style.font.bodySmall }
+        UI.Label { anchors.verticalCenter: parent.verticalCenter; text: root.service && root.service.needsSetup ? "Setup required" : root.service && (root.service.rev.connected || root.moduleConnected) ? "●  Connected" : "○  Disconnected"; color: Commons.Color.accent; font.pixelSize: Style.font.bodySmall }
       }
       UI.Label { id: subtitle; anchors.top: heading.bottom; anchors.topMargin: Style.space(4); text: "Boxflat settings · moza-rev telemetry"; font.pixelSize: Style.font.caption; opacity: 0.5 }
       Controls.ScrollView {
@@ -62,7 +64,7 @@ Panel {
           width: nav.availableWidth
           spacing: Style.space(3)
           Repeater {
-            model: [{name: "Rev lights", connected: true}].concat(root.service ? root.service.panels : [])
+            model: [{name: "Rev lights", connected: true}, {name: "Vibration module", connected: root.moduleConnected}].concat(root.service ? root.service.panels : [])
             Button {
               required property var modelData
               width: parent.width
@@ -94,7 +96,7 @@ Panel {
         }
         Flow {
           width: parent.width; spacing: Style.space(4)
-          visible: !!root.service && !root.service.needsSetup && root.service.pages.length > 1 && root.current !== "Rev lights"
+          visible: !!root.service && !root.service.needsSetup && root.service.pages.length > 1 && !root.ownPage
           Repeater {
             model: root.service ? root.service.pages : []
             Button { required property var modelData; required property int index; text: modelData.title; selected: root.pageIndex === index; focusable: true; fontSize: Style.font.bodySmall; onClicked: {root.pageIndex = index; scroll.contentItem.contentY = 0} }
@@ -127,8 +129,9 @@ Panel {
             UI.Label { width: parent.width; text: "The terminal may ask for your password. If setup is interrupted, reopen it to retry."; font.pixelSize: Style.font.caption; opacity: 0.5 }
           }
           Loader { width: parent.width; visible: active; active: !!root.service && !root.service.needsSetup && root.current === "Rev lights"; sourceComponent: UI.RevPage { service: root.service } }
+          Loader { width: parent.width; visible: active; active: !!root.service && !root.service.needsSetup && root.current === "Vibration module"; sourceComponent: UI.HapticsPage { service: root.service } }
           Repeater {
-            model: (root.service && root.service.needsSetup) || root.current === "Rev lights" ? [] : root.page.groups || []
+            model: (root.service && root.service.needsSetup) || root.ownPage ? [] : root.page.groups || []
             UI.Card {
               id: groupCard
               required property var modelData

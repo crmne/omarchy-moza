@@ -2,6 +2,9 @@
 //! pattern, so Rust never claims a port that Boxflat treats as something else.
 use std::{fs, path::Path};
 
+pub const VENDOR: u16 = 0x346e;
+pub const PEDAL_HAPTICS: u16 = 0x002f;
+
 /// Boxflat's `MozaHidDevice.BASE`, applied to a `/dev/serial/by-id` name:
 /// `gudsen (moza )?r[0-9]{1,2} (pro base|ultra base|base|racing wheel and pedals)`.
 pub fn is_wheelbase(name: &str) -> bool {
@@ -33,6 +36,21 @@ pub fn find_wheelbase() -> Option<String> {
     names
         .first()
         .map(|name| dir.join(name).to_string_lossy().into_owned())
+}
+
+/// Pedal haptic modules plugged straight into the computer, by USB ID.
+pub fn find_pedal_haptics() -> Option<String> {
+    let mut ports: Vec<_> = serialport::available_ports()
+        .ok()?
+        .into_iter()
+        .filter(|port| {
+            matches!(&port.port_type, serialport::SerialPortType::UsbPort(usb)
+                if usb.vid == VENDOR && usb.pid == PEDAL_HAPTICS)
+        })
+        .map(|port| port.port_name)
+        .collect();
+    ports.sort();
+    ports.into_iter().next()
 }
 
 #[cfg(test)]

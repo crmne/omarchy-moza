@@ -27,10 +27,12 @@ def fixtures():
     bridge.panels["Home"]._get_rotation_limit(450)
     while context.pending(): context.iteration(False)
     bridge.rev.status = dict(connected=True, game="Automobilista 2", rpm=6420,
-                             redline=6800, mask=255, test=False, unavailableListeners=[])
+                             redline=6800, mask=255, test=False, unavailableListeners=[],
+                             haptics=dict(connected=True, device="/dev/ttyACM0", testing=None,
+                                          active=[["brake", "abs"], ["brake", "engine"]]))
     bridge.opened = True
     result = {}
-    for name in ["Home", "Base", "Pedals", "Rev lights"]:
+    for name in ["Home", "Base", "Pedals", "Rev lights", "Vibration module"]:
         bridge.focus = name
         doc = bridge.document()
         for page in doc["pages"]:
@@ -125,7 +127,7 @@ def main():
             proc = subprocess.Popen(["qs", "-p", str(shell)], env=env, stdout=stream, stderr=subprocess.STDOUT)
             try:
                 wait_for(lambda: call("ready") == "true", "capture host")
-                for page, filename in [("Home", "inputs.png"), ("Rev lights", "rev-lights.png"), ("Pedals", "pedals.png"), ("Base", "base.png")]:
+                for page, filename in [("Home", "inputs.png"), ("Rev lights", "rev-lights.png"), ("Pedals", "pedals.png"), ("Base", "base.png"), ("Vibration module", "vibration.png")]:
                     print(call("displayPage", page), file=sys.stderr, flush=True)
                     time.sleep(.7)
                     path = output / filename

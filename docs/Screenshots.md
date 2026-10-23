@@ -9,7 +9,8 @@ edges, with the RPM readout, rev lights and pedal inputs at mid-height.
 
 The capture host uses Boxflat's existing demo model to build the settings
 pages. Fixtures supply 6,420 RPM against a 6,800 RPM redline, eight illuminated
-LEDs, −18° steering, and throttle/brake/clutch inputs at 72%/26%/8%. These are
+LEDs, −18° steering, throttle/brake/clutch inputs at 72%/26%/8%, and a
+connected vibration module playing the brake's ABS and engine effects. These are
 illustrative input values, not measurements from a driving session. The
 optional E-Stop row and handbrake group are hidden in the sample configuration.
 

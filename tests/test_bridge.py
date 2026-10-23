@@ -142,6 +142,44 @@ class BridgeTests(unittest.TestCase):
             bridge.rev_config = original
             bridge.settings.write_setting(original, 'rev')
 
+    def test_vibration_edits_go_to_rust_whole_and_validated(self):
+        bridge = self.bridge
+        before = json.loads(json.dumps(bridge.rev.haptics))
+        self.assertTrue(before['brake']['abs']['enabled'])
+        with patch('backend.bridge.OUT', io.StringIO()), patch.object(bridge.rev, 'send') as send:
+            bridge.command(dict(op='haptics', pedal='brake', effect='abs', key='intensity', value=60))
+            sent = send.call_args.args[0]
+            self.assertEqual(sent['op'], 'haptics')
+            self.assertEqual(sent['config']['brake']['abs']['intensity'], 60)
+            self.assertEqual(sent['config']['throttle'], before['throttle'])
+            bridge.command(dict(op='haptics', value=False))
+            self.assertFalse(send.call_args.args[0]['config']['enabled'])
+            send.reset_mock()
+            for bad in [dict(pedal='brake', effect='abs', key='intensity', value='60'),
+                        dict(pedal='brake', effect='abs', key='intensity', value=True),
+                        dict(pedal='feet', effect='abs', key='intensity', value=6),
+                        dict(pedal='brake', effect='nitro', key='intensity', value=6),
+                        dict(pedal='brake', effect='abs', key='colour', value=6),
+                        dict(value=1)]:
+                bridge.command(dict(op='haptics', **bad))
+                self.assertIn('Unknown vibration', bridge.error)
+            bridge.command(dict(op='haptic_test', pedal='brake', effect='nitro'))
+            send.assert_not_called()
+            bridge.command(dict(op='haptic_test', pedal='clutch', effect='bite'))
+            send.assert_called_once_with(dict(op='haptic_test', pedal='clutch', effect='bite'))
+        # Nothing reached Rust, so nothing changed.
+        self.assertEqual(bridge.rev.haptics, before)
+
+    def test_only_settings_rust_accepted_are_saved_and_shown(self):
+        bridge = self.bridge
+        accepted = json.loads(json.dumps(bridge.rev.haptics))
+        accepted['clutch']['bite']['trigger'] = 64
+        with patch.object(bridge.settings, 'write_setting') as write:
+            bridge.save_haptics(accepted)
+            write.assert_called_once_with(accepted, 'haptics')
+        self.assertEqual(bridge.document()['haptics'], bridge.rev.haptics)
+        with self.assertRaises(ValueError): Bridge.haptic_change(None, dict(value=True))
+
     def test_live_inputs_do_not_rebuild_settings(self):
         bridge = self.bridge
         output = io.StringIO()

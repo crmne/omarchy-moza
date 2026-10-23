@@ -2,7 +2,11 @@
 // settings frames; its Python process never sits in the RPM update path.
 mod assetto_corsa;
 mod devices;
+mod haptics;
+mod telemetry;
+mod wire;
 
+use haptics::Haptics;
 use moza_rev::{
     listeners::{self, EngineState, Update},
     moza::{self, Moza},
@@ -15,6 +19,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+use telemetry::Telemetry;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -168,24 +173,9 @@ fn test_mask(config: &Config, elapsed: Duration) -> Option<u32> {
     }
 }
 
-// Modern wheel commands from Boxflat's serial.yml. Escape custom RGB bytes
-// exactly like moza-rev: body 0x7e bytes contribute twice to the wire checksum.
+// Modern wheel commands from Boxflat's serial.yml.
 fn wheel_frame(command: &[u8], payload: &[u8]) -> Vec<u8> {
-    let mut frame = vec![0x7e, (command.len() + payload.len()) as u8, 0x3f, 0x17];
-    frame.extend_from_slice(command);
-    frame.extend_from_slice(payload);
-    let checksum = (13
-        + frame.iter().map(|b| u32::from(*b)).sum::<u32>()
-        + 0x7e * frame[2..].iter().filter(|b| **b == 0x7e).count() as u32) as u8;
-    frame.push(checksum);
-    let mut wire = frame[..2].to_vec();
-    for byte in &frame[2..] {
-        wire.push(*byte);
-        if *byte == 0x7e {
-            wire.push(*byte);
-        }
-    }
-    wire
+    wire::frame(0x3f, 0x17, &[command, payload].concat())
 }
 
 fn drive_lights(
@@ -211,10 +201,23 @@ fn drive_lights(
 #[derive(Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 enum Command {
-    Configure { config: Config },
-    Write { frame: Vec<u8> },
+    Configure {
+        config: Config,
+    },
+    Haptics {
+        config: Box<haptics::Config>,
+    },
+    HapticTest {
+        pedal: haptics::Pedal,
+        effect: haptics::Kind,
+    },
+    Write {
+        frame: Vec<u8>,
+    },
     Test,
-    Pause { milliseconds: u64 },
+    Pause {
+        milliseconds: u64,
+    },
     Quit,
 }
 
@@ -253,23 +256,41 @@ fn main() -> io::Result<()> {
         }
         let _ = cmd_tx.send(Command::Quit);
     });
-    let (tx, rx) = mpsc::channel::<Update>();
+    let (tx, rx) = mpsc::channel::<Telemetry>();
+    // moza-rev's listeners report engine state only.
+    let (engine_tx, engine_rx) = mpsc::channel::<Update>();
+    {
+        let tx = tx.clone();
+        thread::spawn(move || {
+            for update in engine_rx {
+                if tx.send(update.into()).is_err() {
+                    break;
+                }
+            }
+        });
+    }
     let mut failures = Vec::new();
     for (name, ok) in [
         (
             "Wreckfest 2 :23123",
-            listeners::wreckfest_2::spawn(23123, tx.clone()),
+            listeners::wreckfest_2::spawn(23123, engine_tx.clone()),
         ),
         (
             "DiRT / F1 :20777",
-            listeners::codemasters_legacy::spawn(20777, tx.clone()),
+            listeners::codemasters_legacy::spawn(20777, engine_tx.clone()),
         ),
         (
             "AMS2 / PC2 :5606",
-            listeners::madness::spawn(5606, tx.clone()),
+            listeners::madness::spawn(5606, engine_tx.clone()),
         ),
-        ("BeamNG :4444", listeners::outgauge::spawn(4444, tx.clone())),
-        ("Forza :9999", listeners::forza::spawn(9999, tx.clone())),
+        (
+            "BeamNG :4444",
+            listeners::outgauge::spawn(4444, engine_tx.clone()),
+        ),
+        (
+            "Forza :9999",
+            listeners::forza::spawn(9999, engine_tx.clone()),
+        ),
         (
             "Assetto Corsa :9997",
             assetto_corsa::spawn(9997, tx.clone()),
@@ -280,7 +301,13 @@ fn main() -> io::Result<()> {
         }
     }
     drop(tx);
+    drop(engine_tx);
     let mut config = Config::default();
+    let mut haptic_config = haptics::Config::default();
+    let mut haptics = Haptics::default();
+    let mut module: Option<Box<dyn serialport::SerialPort>> = None;
+    let mut module_path = String::new();
+    let mut module_reconnect = Instant::now() - Duration::from_secs(4);
     let mut wheel: Option<Moza> = None;
     let mut raw: Option<Box<dyn serialport::SerialPort>> = None;
     let mut path = String::new();
@@ -288,7 +315,7 @@ fn main() -> io::Result<()> {
     let mut sent = Instant::now();
     let mut status = Instant::now();
     let mut packet = Instant::now() - Duration::from_secs(3);
-    let mut last: Option<Update> = None;
+    let mut last: Option<Telemetry> = None;
     let mut mask = 0;
     let mut test: Option<Instant> = None;
     let mut paused_until = Instant::now();
@@ -331,7 +358,23 @@ fn main() -> io::Result<()> {
                     if let Some(w) = wheel.as_mut() {
                         let _ = w.send_rpm_bitmask(0, config.leds);
                     }
+                    if let Some(port) = module.as_mut() {
+                        let _ = port.write_all(&haptics.stop_all().concat());
+                        let _ = port.flush();
+                    }
                     return Ok(());
+                }
+                Command::Haptics { config: next } if next.validate() => {
+                    haptic_config = *next;
+                    // The bridge saves exactly what was accepted.
+                    emit(&out_tx, json!({"haptics": haptic_config}));
+                }
+                Command::Haptics { .. } => emit(
+                    &out_tx,
+                    json!({"error": "Invalid vibration module settings"}),
+                ),
+                Command::HapticTest { pedal, effect } => {
+                    haptics.test(pedal, effect, Instant::now())
                 }
                 Command::Configure { config: next } if next.validate() => {
                     config = next;
@@ -371,6 +414,45 @@ fn main() -> io::Result<()> {
             packet = Instant::now();
         }
         let active = packet.elapsed() < Duration::from_secs(2);
+        if module.is_none() && module_reconnect.elapsed() > Duration::from_secs(3) {
+            module_reconnect = Instant::now();
+            module_path = devices::find_pedal_haptics().unwrap_or_default();
+            if !module_path.is_empty() {
+                match serialport::new(&module_path, 115_200)
+                    .timeout(Duration::from_millis(1))
+                    .open()
+                {
+                    // Clear anything a previous session left running.
+                    Ok(mut port) => match port.write_all(&haptics.stop_all().concat()) {
+                        Ok(()) => module = Some(port),
+                        Err(e) => error = e.to_string(),
+                    },
+                    Err(e) => error = e.to_string(),
+                }
+            }
+        }
+        if let Some(port) = module.as_mut() {
+            let live = last.as_ref().filter(|_| packet.elapsed() < haptics::STALE);
+            let frames = haptics.tick(&haptic_config, live, Instant::now());
+            let mut replies = [0; 256];
+            // Acknowledgements and the module's debug log are not needed.
+            let result =
+                port.write_all(&frames.concat())
+                    .and_then(|_| match port.read(&mut replies) {
+                        Err(e)
+                            if [io::ErrorKind::TimedOut, io::ErrorKind::WouldBlock]
+                                .contains(&e.kind()) =>
+                        {
+                            Ok(0)
+                        }
+                        result => result,
+                    });
+            if let Err(e) = result {
+                error = e.to_string();
+                module = None;
+                haptics.reset();
+            }
+        }
         let mut next = shift_flash.mask(
             &config,
             last.as_ref().filter(|_| active).map(|u| &u.engine),
@@ -419,11 +501,15 @@ fn main() -> io::Result<()> {
                 &out_tx,
                 json!({"status": {
                     "connected": wheel.is_some(), "device": path, "error": error,
-                    "game": if active { last.map(|u| u.game.name()) } else { None },
+                    "game": if active { last.map(|u| u.game) } else { None },
                     "rpm": if active { last.map_or(0, |u| u.engine.rpm) } else { 0 },
                     "redline": last.map_or(0, |u| u.engine.rpm_redline), "mask": mask,
                     "test": test.is_some(), "unavailableListeners": failures,
-                    "customColors": wheel.is_some() && modern
+                    "customColors": wheel.is_some() && modern,
+                    "haptics": {
+                        "connected": module.is_some(), "device": module_path,
+                        "active": haptics.active(), "testing": haptics.testing(),
+                    }
                 }}),
             );
             status = Instant::now();

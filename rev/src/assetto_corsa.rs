@@ -1,5 +1,7 @@
 //! Exact AC telemetry from the companion CSP app, never an observed RPM peak.
-use moza_rev::listeners::{EngineState, GameId, Update};
+//! Version 2 adds what pedal haptics need; version 1 carries the engine only.
+use crate::telemetry::{Telemetry, Wheels};
+use moza_rev::listeners::{EngineState, GameId};
 use serde::Deserialize;
 use std::{io, net::UdpSocket, sync::mpsc, thread};
 
@@ -10,21 +12,58 @@ struct Packet {
     rpm: i32,
     redline: i32,
     idle: i32,
+    gear: Option<i32>,
+    speed: Option<f32>,
+    throttle: Option<f32>,
+    brake: Option<f32>,
+    clutch: Option<f32>,
+    abs: Option<bool>,
+    tc: Option<bool>,
+    slip: Option<Wheels>,
+    suspension: Option<Wheels>,
 }
 
-fn parse(bytes: &[u8]) -> Option<EngineState> {
+fn unit(value: Option<f32>) -> Option<f32> {
+    value.filter(|v| v.is_finite()).map(|v| v.clamp(0.0, 1.0))
+}
+
+fn finite(wheels: Option<Wheels>) -> Option<Wheels> {
+    wheels.filter(|w| w.iter().all(|v| v.is_finite()))
+}
+
+fn parse(bytes: &[u8]) -> Option<Telemetry> {
     let p: Packet = serde_json::from_slice(bytes).ok()?;
-    if p.protocol != "omarchy-moza-ac/1" || p.rpm < 0 || p.idle < 0 || p.redline <= p.idle {
+    if !matches!(
+        p.protocol.as_str(),
+        "omarchy-moza-ac/1" | "omarchy-moza-ac/2"
+    ) || p.rpm < 0
+        || p.idle < 0
+        || p.redline <= p.idle
+    {
         return None;
     }
-    Some(EngineState {
-        rpm: p.rpm,
-        rpm_redline: p.redline,
-        rpm_idle: p.idle,
+    Some(Telemetry {
+        gear: p.gear,
+        speed: p.speed.filter(|v| v.is_finite()),
+        throttle: unit(p.throttle),
+        brake: unit(p.brake),
+        clutch: unit(p.clutch),
+        abs: p.abs,
+        tc: p.tc,
+        slip: finite(p.slip),
+        suspension: finite(p.suspension),
+        ..Telemetry::engine(
+            GameId::AssettoCorsa.name(),
+            EngineState {
+                rpm: p.rpm,
+                rpm_redline: p.redline,
+                rpm_idle: p.idle,
+            },
+        )
     })
 }
 
-pub fn spawn(port: u16, tx: mpsc::Sender<Update>) -> bool {
+pub fn spawn(port: u16, tx: mpsc::Sender<Telemetry>) -> bool {
     let Ok(socket) = UdpSocket::bind(("127.0.0.1", port)) else {
         return false;
     };
@@ -38,13 +77,8 @@ pub fn spawn(port: u16, tx: mpsc::Sender<Update>) -> bool {
                     Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
                     Err(_) => break,
                 };
-                if let Some(engine) = parse(&buffer[..n])
-                    && tx
-                        .send(Update {
-                            game: GameId::AssettoCorsa,
-                            engine,
-                        })
-                        .is_err()
+                if let Some(telemetry) = parse(&buffer[..n])
+                    && tx.send(telemetry).is_err()
                 {
                     break;
                 }
@@ -67,14 +101,17 @@ mod tests {
     #[test]
     fn limit_is_reported_not_learned_and_can_decrease_between_cars() {
         for (rpm, redline, idle) in [(8500, 9000, 1200), (6300, 6500, 1250), (450, 500, 100)] {
-            let engine = parse(&packet(rpm, redline, idle)).unwrap();
+            let engine = parse(&packet(rpm, redline, idle)).unwrap().engine;
             assert_eq!(engine.rpm_redline, redline);
             assert_eq!(engine.rpm, rpm);
             assert_eq!(engine.rpm_idle, idle);
         }
         // Over-revving on a downshift must not move the reported limit.
-        assert_eq!(parse(&packet(7200, 6500, 1250)).unwrap().rpm_redline, 6500);
-        assert_eq!(parse(&packet(0, 500, 100)).unwrap().rpm, 0);
+        assert_eq!(
+            parse(&packet(7200, 6500, 1250)).unwrap().engine.rpm_redline,
+            6500
+        );
+        assert_eq!(parse(&packet(0, 500, 100)).unwrap().engine.rpm, 0);
     }
 
     #[test]
@@ -95,5 +132,30 @@ mod tests {
         ] {
             assert!(parse(bytes).is_none());
         }
+    }
+
+    #[test]
+    fn version_two_carries_haptic_inputs() {
+        let t = parse(
+            br#"{"protocol":"omarchy-moza-ac/2","rpm":7000,"redline":8000,"idle":900,
+                "gear":3,"speed":41.5,"throttle":0.25,"brake":1.4,"clutch":0,
+                "abs":true,"tc":false,"slip":[0.01,0.02,-0.4,0.3],"suspension":[0.05,0.05,0.06,0.06]}"#,
+        )
+        .unwrap();
+        assert_eq!(t.gear, Some(3));
+        assert_eq!(t.speed, Some(41.5));
+        assert_eq!(
+            (t.throttle, t.brake, t.clutch),
+            (Some(0.25), Some(1.0), Some(0.0))
+        );
+        assert_eq!((t.abs, t.tc), (Some(true), Some(false)));
+        assert_eq!(t.slip, Some([0.01, 0.02, -0.4, 0.3]));
+        // Version 1 leaves every haptic input unknown.
+        let v1 = parse(&packet(7000, 8000, 900)).unwrap();
+        assert!(v1.gear.is_none() && v1.slip.is_none() && v1.abs.is_none());
+        assert!(
+            parse(br#"{"protocol":"omarchy-moza-ac/2","rpm":1,"redline":2,"idle":0,"boost":1}"#)
+                .is_none()
+        );
     }
 }

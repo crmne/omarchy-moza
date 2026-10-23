@@ -38,6 +38,9 @@ They do not represent a live game or additional hardware testing.
   combinations, calibration, RPM/button colours, brightness, idle effects.
 - Pedals, dashboards, H-pattern and sequential shifters, handbrakes,
   multifunction stalks and universal hubs, using Boxflat's existing controls.
+- Pedal vibration for MOZA's Pedal Haptic Feedback module: engine, gear shift,
+  TC, ABS, wheel spin, lockup, brake threshold, clutch bite point and road
+  texture effects per pedal, driven by game telemetry with Pit House's timings.
 - Guided pedal calibration beside live input and range controls. Previously
   shortened pedal limits can be expanded again from Home.
 - Boxflat presets with device selection, default profiles and automatic
@@ -91,13 +94,14 @@ Close standalone Boxflat and stop standalone moza-rev first. They must not
 compete for device replies or UDP ports. System packages and device rules are
 installed only when you choose setup; nothing privileged runs at startup.
 
-The steering-wheel icon appears when a wheelbase connects and disappears when
-it disconnects. It also appears when first-run setup is needed. The background
+The steering-wheel icon appears when a wheelbase or pedal haptic module
+connects and disappears when both disconnect. It also appears when first-run setup is needed. The background
 service keeps watching for reconnection.
 Click the icon in the bar, or run:
 
 ```sh
 omarchy-shell crmne.moza show 'Rev lights'
+omarchy-shell crmne.moza show 'Vibration module'
 omarchy-shell crmne.moza show Base
 omarchy-shell crmne.moza status
 omarchy-shell crmne.moza configure 80 97
@@ -157,6 +161,28 @@ reconnecting, changing the LED count or running a wheel test. **Wheel** controls
 the wheel's static colors separately; reading those settings no longer replaces
 the live rev colors. Custom live colors and brightness require a modern wheel
 protocol; the controls are disabled on legacy wheels.
+
+### Pedal vibration
+
+Plug MOZA's Pedal Haptic Feedback module straight into the computer with USB.
+**Vibration module** then shows Pit House's effects for the clutch, brake and
+throttle, each with an on/off switch, **Test**, and its frequency, intensity,
+trigger or RPM range. The defaults are Pit House's PHF-Official preset. A dot
+lights while an effect plays. Settings are saved in the plugin's settings
+folder and apply immediately.
+
+Effects follow live telemetry, so each one needs its game to report the input:
+
+| Game | Effects |
+|---|---|
+| Assetto Corsa (CSP companion, version 2) | All |
+| Other supported games | Engine only |
+
+Effects stop 300 ms after telemetry stops and when the plugin exits. A module
+connected behind a wheelbase is not supported yet; use its USB port. Assetto
+Corsa needs the companion from a current assetto-corsa-setup; the older
+companion sends RPM only. See [pedal haptics](docs/Pedal-haptics.md) for the protocol and Pit House's
+recorded behaviour.
 
 ### Pedal calibration and limits
 

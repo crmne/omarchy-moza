@@ -10,6 +10,7 @@ Item {
   property var pages: []
   property var panels: []
   property var rev: ({})
+  property var haptics: null
   property var config: ({start: 80, full: 97, flash: 95, flash_hz: 10, leds: 10, enabled: true, colors: ["#00ff00", "#ffff00", "#ff0000"], brightness: 100})
   property string error: ""
   property string message: ""
@@ -37,6 +38,11 @@ Item {
     var next = Object.assign({}, config); next[key] = value
     send({op: "rev", config: next})
   }
+  function setHaptic(pedal, effect, key, value) {
+    send({op: "haptics", pedal: pedal, effect: effect, key: key, value: value})
+  }
+  function setHapticsEnabled(value) { send({op: "haptics", value: value}) }
+  function testHaptic(pedal, effect) { send({op: "haptic_test", pedal: pedal, effect: effect}) }
   function setRevColor(index, value) {
     var colors = config.colors.slice()
     colors[index] = value
@@ -55,6 +61,7 @@ Item {
     setup = null
     ready = true
     config = data.config || config
+    haptics = data.haptics || haptics
     error = data.error || rev.error || ""; message = data.message || ""
     dialog = !!data.dialog; demo = !!data.demo
     var rowState = {}, groupState = {}

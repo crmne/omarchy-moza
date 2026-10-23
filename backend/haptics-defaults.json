@@ -1,0 +1,252 @@
+{
+  "enabled": true,
+  "throttle": {
+    "tc": {
+      "enabled": true,
+      "frequency": 50,
+      "intensity": 80,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "abs": {
+      "enabled": false,
+      "frequency": 30,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "lockup": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "brake_threshold": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 75,
+      "smoothness": 50
+    },
+    "engine": {
+      "enabled": true,
+      "frequency": 100,
+      "intensity": 10,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "bite": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "gear_shift": {
+      "enabled": true,
+      "frequency": 100,
+      "intensity": 80,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "wheel_spin": {
+      "enabled": false,
+      "frequency": 40,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "road": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    }
+  },
+  "brake": {
+    "tc": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "abs": {
+      "enabled": true,
+      "frequency": 30,
+      "intensity": 100,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "lockup": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "brake_threshold": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 75,
+      "smoothness": 50
+    },
+    "engine": {
+      "enabled": true,
+      "frequency": 100,
+      "intensity": 10,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "bite": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "gear_shift": {
+      "enabled": true,
+      "frequency": 100,
+      "intensity": 80,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "wheel_spin": {
+      "enabled": false,
+      "frequency": 40,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "road": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    }
+  },
+  "clutch": {
+    "tc": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "abs": {
+      "enabled": false,
+      "frequency": 30,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "lockup": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "brake_threshold": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 75,
+      "smoothness": 50
+    },
+    "engine": {
+      "enabled": true,
+      "frequency": 100,
+      "intensity": 10,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "bite": {
+      "enabled": true,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "gear_shift": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "wheel_spin": {
+      "enabled": false,
+      "frequency": 40,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    },
+    "road": {
+      "enabled": false,
+      "frequency": 50,
+      "intensity": 50,
+      "start": 500,
+      "end": 10000,
+      "trigger": 70,
+      "smoothness": 50
+    }
+  }
+}

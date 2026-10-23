@@ -97,7 +97,8 @@ ShellRoot {
       return JSON.stringify({visible: panel.item.visible, open: panel.item.opened, rev: service.item.rev})
     }
     function connection(connected: bool): string {
-      service.item.rev = Object.assign({}, service.item.rev, {connected: connected})
+      var haptics = Object.assign({}, service.item.rev.haptics || {}, {connected: connected})
+      service.item.rev = Object.assign({}, service.item.rev, {connected: connected, haptics: haptics})
       return JSON.stringify({visible: panel.item.visible, open: panel.item.opened, ready: service.item.ready})
     }
     function setupPreview(): string {

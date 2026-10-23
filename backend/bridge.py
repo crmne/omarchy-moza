@@ -36,24 +36,41 @@ from boxflat.settings_handler import SettingsHandler
 from boxflat.panels import *
 
 
+HAPTIC_PEDALS = ("throttle", "brake", "clutch")
+HAPTIC_EFFECTS = ("tc", "abs", "lockup", "brake_threshold", "engine", "bite", "gear_shift", "wheel_spin", "road")
+HAPTIC_FIELDS = dict(enabled=bool, frequency=int, intensity=int, start=int, end=int, trigger=int, smoothness=int)
+
+
 class Rev:
-    def __init__(self, config, simulate=False):
+    def __init__(self, config, simulate=False, haptics=None, on_haptics=None):
         self.status = dict(connected=False, rpm=0, redline=0, mask=0)
         self.handler = None
         self.config = config
+        # Rust owns the vibration defaults and validation. It echoes the
+        # settings it accepted, and only those are shown and saved.
+        self.haptics = None
+        self.on_haptics = on_haptics or (lambda config: None)
         self.lock = threading.Lock()
         self.process = None
         self.buffer = bytearray()
-        if simulate: return
+        self.simulate = simulate
+        if simulate:
+            # Demo mode has no Rust process; use its defaults, kept in sync by a Rust test.
+            self.haptics = json.loads((ROOT / "backend/haptics-defaults.json").read_text())
+            return
         binary = ROOT / "bin" / ("omarchy-moza" if os.uname().machine == "x86_64" else "omarchy-moza-" + os.uname().machine)
         if not binary.exists():
             self.status["error"] = "Rev backend is missing. Run make build in the plugin repository."
             return
         self.process = subprocess.Popen([str(binary)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
         self.send(dict(op="configure", config=config))
+        self.saved_haptics = haptics or {}
+        self.send(dict(op="haptics", config=self.saved_haptics))
         threading.Thread(target=self.read, daemon=True).start()
 
     def send(self, message):
+        if self.simulate and message.get("op") == "haptics" and message["config"]:
+            self.haptics = message["config"]
         if not self.process or self.process.poll() is not None: return
         with self.lock:
             try:
@@ -67,6 +84,13 @@ class Rev:
             except ValueError: continue
             if "status" in message:
                 self.status = message["status"]
+            if "haptics" in message:
+                self.haptics = message["haptics"]
+                self.on_haptics(self.haptics)
+            if "error" in message and self.haptics is None and self.saved_haptics:
+                # A hand-edited or outdated file: fall back to the defaults.
+                self.saved_haptics = {}
+                self.send(dict(op="haptics", config={}))
             if "serial" in message:
                 self.buffer.extend(message["serial"])
                 # Match Boxflat's receive framing, retaining partial reads.
@@ -114,7 +138,9 @@ class Bridge:
         self.settings = SettingsHandler(str(config_path))
         saved = self.settings.read_setting("rev")
         if self.valid_rev(saved): self.rev_config.update(saved)
-        self.rev = Rev(self.rev_config, demo)
+        saved_haptics = self.settings.read_setting("haptics")
+        self.rev = Rev(self.rev_config, demo, saved_haptics if isinstance(saved_haptics, dict) else None,
+                       lambda config: GLib.idle_add(self.save_haptics, config))
         self.last_rev = dict(self.rev.status)
         self.cm = connection_manager.MozaConnectionManager(str(BOXFLAT/"data/serial.yml"), demo)
         self.hid = HidHandler()
@@ -186,6 +212,26 @@ class Bridge:
                 and ("colors" not in c or len(c["colors"]) == 3 and all(
                     isinstance(color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", color) for color in c["colors"])))
 
+    def save_haptics(self, config):
+        self.settings.write_setting(config, "haptics")
+        return False
+
+    @staticmethod
+    def haptic_change(current, request):
+        """The full settings after one edit from the panel."""
+        if current is None: raise ValueError("The vibration module settings are still loading.")
+        config = json.loads(json.dumps(current))
+        if "pedal" not in request:
+            if type(request.get("value")) is not bool: raise ValueError("Unknown vibration setting")
+            config["enabled"] = request["value"]
+            return config
+        pedal, effect, key, value = (request.get(k) for k in ("pedal", "effect", "key", "value"))
+        if pedal not in HAPTIC_PEDALS or effect not in HAPTIC_EFFECTS or key not in HAPTIC_FIELDS \
+                or type(value) is not HAPTIC_FIELDS[key]:
+            raise ValueError("Unknown vibration setting")
+        config[pedal][effect][key] = value
+        return config
+
     def hold(self): pass
     def release(self): pass
     def send_notification(self, key, notification): self.notice("Applied automatic Boxflat preset")
@@ -207,7 +253,8 @@ class Bridge:
                 for page in pages: page["groups"] = [g for g in page["groups"] if g["title"] != "Background settings"]
         return dict(panels=[dict(name=name, connected=panel._active) for name,panel in self.panels.items()],
                     pages=pages, dialog=bool(self.dialog), rev=self.rev.status,
-                    config=self.rev_config, error=self.error, message=self.message, demo=self.demo)
+                    config=self.rev_config, haptics=self.rev.haptics,
+                    error=self.error, message=self.message, demo=self.demo)
 
     def publish_live(self):
         try:
@@ -217,7 +264,7 @@ class Bridge:
                 update["live"] = values
                 self.last_live = values
             status = self.rev.status
-            if self.focus == "Rev lights" and status != self.last_rev:
+            if self.focus in ("Rev lights", "Vibration module") and status != self.last_rev:
                 update["rev"] = status
                 self.last_rev = dict(status)
             if update:
@@ -272,6 +319,11 @@ class Bridge:
                 self.rev_config = config
                 self.rev.send(dict(op="configure", config=config))
             elif op == "test": self.rev.send(dict(op="test"))
+            elif op == "haptics": self.rev.send(dict(op="haptics", config=self.haptic_change(self.rev.haptics, request)))
+            elif op == "haptic_test":
+                if request.get("pedal") not in HAPTIC_PEDALS or request.get("effect") not in HAPTIC_EFFECTS:
+                    raise ValueError("Unknown vibration effect")
+                self.rev.send(dict(op="haptic_test", pedal=request["pedal"], effect=request["effect"]))
             elif op == "back":
                 if self.dialog:
                     nav = self.dialog.get_child()
