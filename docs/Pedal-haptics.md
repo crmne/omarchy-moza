@@ -78,6 +78,22 @@ PHF-Official preset:
 | Clutch bite point | clutch travel is within the zone around the trigger | clutch |
 | Road texture | suspension moves, while above 2 m/s | suspension travel, speed |
 
+Per game:
+
+- **Assetto Corsa:** the CSP companion sends CSP's own ABS and TC activity,
+  slip ratios and suspension travel.
+- **Automobilista 2 / Project CARS 2:** UDP `sCarFlags` bits `0x10` (ABS) and
+  `0x40` (TC) light while the aid acts but also flicker, so ABS counts only
+  above 6% brake and TC above 6% throttle. UDP has no tyre radius: each wheel's
+  radius is learned as speed ÷ wheel rad/s while coasting straight above
+  10 m/s, and slip is reported once all four are known.
+- **Forza:** slip is normalised to the grip limit (±1), so it is scaled by 0.2
+  into a slip ratio. The Dash format adds inputs and gear; Sled has neither.
+  Forza reports no ABS or TC activity.
+- **BeamNG:** OutGauge's ABS light is set exactly while ABS intervenes. Its TC
+  light blinks while traction or stability control acts and is solid when
+  switched off, so TC counts only within 600 ms of a blink, on the throttle.
+
 The bite point zone spans up to 20% of travel either side of the trigger at
 100% smoothness. Effects whose input a game does not report stay silent.
 All effects stop 300 ms after telemetry stops, when vibration is switched off,

@@ -2,6 +2,7 @@
 // settings frames; its Python process never sits in the RPM update path.
 mod assetto_corsa;
 mod devices;
+mod games;
 mod haptics;
 mod telemetry;
 mod wire;
@@ -281,16 +282,13 @@ fn main() -> io::Result<()> {
         ),
         (
             "AMS2 / PC2 :5606",
-            listeners::madness::spawn(5606, engine_tx.clone()),
+            games::spawn(5606, games::Ams2::default(), tx.clone()),
         ),
         (
             "BeamNG :4444",
-            listeners::outgauge::spawn(4444, engine_tx.clone()),
+            games::spawn(4444, games::BeamNg::default(), tx.clone()),
         ),
-        (
-            "Forza :9999",
-            listeners::forza::spawn(9999, engine_tx.clone()),
-        ),
+        ("Forza :9999", games::spawn(9999, games::Forza, tx.clone())),
         (
             "Assetto Corsa :9997",
             assetto_corsa::spawn(9997, tx.clone()),

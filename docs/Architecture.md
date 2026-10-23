@@ -23,7 +23,8 @@ Closing stdin stops the engine and clears the lights.
 
 The same loop drives the pedal haptic module (`rev/src/haptics.rs`) on its own
 USB serial port, found by its 346e:002f ID. Every listener produces one
-`Telemetry` record: moza-rev's listeners fill only the engine, ours add gear,
+`Telemetry` record: moza-rev's listeners (Wreckfest 2, Codemasters) fill only
+the engine; `rev/src/games.rs` (AMS2, Forza, BeamNG) and the AC listener add gear,
 speed, pedal inputs, ABS/TC activity, wheel slip and suspension travel. Each
 tick computes the wanted state of all 27 pedal slots and writes only changes
 and keep-alive resends, stops first, at most 12 frames per tick. Rust owns the

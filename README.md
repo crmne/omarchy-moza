@@ -176,7 +176,15 @@ Effects follow live telemetry, so each one needs its game to report the input:
 | Game | Effects |
 |---|---|
 | Assetto Corsa (CSP companion, version 2) | All |
-| Other supported games | Engine only |
+| Automobilista 2 / Project CARS 2 | All |
+| Forza (Dash format) | All except ABS and TC, which Forza does not report |
+| BeamNG.drive | Engine, gear shift, ABS, TC, brake threshold, bite point |
+| Wreckfest 2, Codemasters games | Engine only |
+
+AMS2 does not report tyre sizes, so wheel spin and lockup start after the
+plugin has seen each car coast straight above 36 km/h for a moment. Choose
+**Dash** as Forza's Data Out format; Sled has no pedal inputs or gear.
+BeamNG's OutGauge has no wheel slip or suspension data.
 
 Effects stop 300 ms after telemetry stops and when the plugin exits. A module
 connected behind a wheelbase is not supported yet; use its USB port. Assetto
