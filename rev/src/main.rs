@@ -421,8 +421,10 @@ fn main() -> io::Result<()> {
             module_reconnect = Instant::now();
             module_path = devices::find_pedal_haptics().unwrap_or_default();
             if !module_path.is_empty() {
+                // The timeout also bounds writes: a full stop burst takes
+                // longer than a millisecond. Reads never wait, see below.
                 match serialport::new(&module_path, 115_200)
-                    .timeout(Duration::from_millis(1))
+                    .timeout(Duration::from_millis(50))
                     .open()
                 {
                     // Clear anything a previous session left running.
@@ -439,17 +441,12 @@ fn main() -> io::Result<()> {
             let frames = haptics.tick(&haptic_config, live, Instant::now());
             let mut replies = [0; 256];
             // Acknowledgements and the module's debug log are not needed.
-            let result =
-                port.write_all(&frames.concat())
-                    .and_then(|_| match port.read(&mut replies) {
-                        Err(e)
-                            if [io::ErrorKind::TimedOut, io::ErrorKind::WouldBlock]
-                                .contains(&e.kind()) =>
-                        {
-                            Ok(0)
-                        }
-                        result => result,
-                    });
+            let result = port.write_all(&frames.concat()).and_then(|_| {
+                if port.bytes_to_read()? > 0 {
+                    let _ = port.read(&mut replies)?;
+                }
+                Ok(())
+            });
             if let Err(e) = result {
                 error = e.to_string();
                 module = None;
