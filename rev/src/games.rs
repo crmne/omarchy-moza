@@ -1,14 +1,15 @@
-//! Listeners for games whose UDP telemetry carries more than the engine:
-//! Automobilista 2 / Project CARS 2, Forza and BeamNG. They replace
-//! moza-rev's engine-only listeners on the same ports.
-use crate::telemetry::{Telemetry, Wheels};
+//! UDP game listeners. Automobilista 2 / Project CARS 2, Forza and BeamNG
+//! carry more than the engine; Wreckfest 2 and the Codemasters titles use
+//! moza-rev's packet parsers. Every listener stores into one latest-value
+//! slot, never a queue, so a flood of packets cannot grow memory.
+use crate::telemetry::{Latest, Telemetry, Wheels};
 use moza_rev::{
+    codemasters_legacy,
     listeners::{EngineState, GameId},
-    madness,
+    madness, wreckfest,
 };
 use std::{
     net::UdpSocket,
-    sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
@@ -17,17 +18,17 @@ pub trait Parser: Send + 'static {
     fn parse(&mut self, bytes: &[u8], now: Instant) -> Option<Telemetry>;
 }
 
-pub fn spawn(port: u16, parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
+pub fn spawn(port: u16, parser: impl Parser, latest: Latest) -> bool {
     // AMS2 broadcasts, so listen on every address like moza-rev does.
-    listen(("0.0.0.0", port), parser, tx)
+    listen(("0.0.0.0", port), parser, latest)
 }
 
 /// For senders on this computer only, such as the Proton helper.
-pub fn spawn_local(port: u16, parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
-    listen(("127.0.0.1", port), parser, tx)
+pub fn spawn_local(port: u16, parser: impl Parser, latest: Latest) -> bool {
+    listen(("127.0.0.1", port), parser, latest)
 }
 
-fn listen(address: (&str, u16), mut parser: impl Parser, tx: mpsc::Sender<Telemetry>) -> bool {
+fn listen(address: (&str, u16), mut parser: impl Parser, latest: Latest) -> bool {
     let port = address.1;
     let Ok(socket) = UdpSocket::bind(address) else {
         return false;
@@ -37,10 +38,8 @@ fn listen(address: (&str, u16), mut parser: impl Parser, tx: mpsc::Sender<Teleme
         .spawn(move || {
             let mut buffer = [0; 2048];
             while let Ok(n) = socket.recv(&mut buffer) {
-                if let Some(telemetry) = parser.parse(&buffer[..n], Instant::now())
-                    && tx.send(telemetry).is_err()
-                {
-                    break;
+                if let Some(telemetry) = parser.parse(&buffer[..n], Instant::now()) {
+                    latest.store(telemetry);
                 }
             }
         })
@@ -59,6 +58,48 @@ fn wheels(bytes: &[u8], offset: usize) -> Option<Wheels> {
 }
 fn pedal(value: u8) -> f32 {
     f32::from(value) / 255.0
+}
+
+/// Wreckfest 2 ("Pino") main packets, as moza-rev's own listener reads them.
+pub struct Wreckfest2;
+
+impl Parser for Wreckfest2 {
+    fn parse(&mut self, bytes: &[u8], _: Instant) -> Option<Telemetry> {
+        let wreckfest::Packet::Main(main) = wreckfest::parse(bytes)? else {
+            return None;
+        };
+        let engine = main.car.engine;
+        Some(Telemetry::engine(
+            GameId::Wreckfest2.name(),
+            EngineState {
+                rpm: { engine.rpm },
+                rpm_redline: { engine.rpm_redline },
+                rpm_idle: { engine.rpm_idle },
+            },
+        ))
+    }
+}
+
+/// Codemasters EGO "extradata" packets (DiRT, DiRT Rally, F1 2010-2017,
+/// GRID), as moza-rev's own listener reads them.
+pub struct Codemasters;
+
+impl Parser for Codemasters {
+    fn parse(&mut self, bytes: &[u8], _: Instant) -> Option<Telemetry> {
+        let t = codemasters_legacy::Telemetry::from_bytes(bytes)?;
+        // Menus report no redline.
+        if t.redline_rpm() <= t.idle_rpm() {
+            return None;
+        }
+        Some(Telemetry::engine(
+            GameId::CodemastersLegacy.name(),
+            EngineState {
+                rpm: t.rpm(),
+                rpm_redline: t.redline_rpm(),
+                rpm_idle: t.idle_rpm(),
+            },
+        ))
+    }
 }
 
 /// AMS2 and Project CARS 2 ("Project CARS 2" UDP, packet type 0).
@@ -251,6 +292,53 @@ mod tests {
 
     fn put(b: &mut [u8], offset: usize, value: f32) {
         b[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    }
+
+    fn wreckfest(rpm: i32, redline: i32, idle: i32) -> Vec<u8> {
+        let mut b = vec![0; std::mem::size_of::<wreckfest::Main>()];
+        b[0..4].copy_from_slice(&wreckfest::SIGNATURE.to_le_bytes());
+        b[4] = 0; // main packet
+        // moza-rev checks these offsets against the game's header.
+        for (offset, value) in [(435, rpm), (443, redline), (447, idle)] {
+            b[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+        }
+        b
+    }
+
+    #[test]
+    fn wreckfest_reads_the_engine_from_main_packets_only() {
+        let now = Instant::now();
+        let t = Wreckfest2.parse(&wreckfest(6500, 7200, 900), now).unwrap();
+        assert_eq!(
+            (t.engine.rpm, t.engine.rpm_redline, t.engine.rpm_idle),
+            (6500, 7200, 900)
+        );
+        assert_eq!(t.game, GameId::Wreckfest2.name());
+        let mut other = wreckfest(6500, 7200, 900);
+        other[4] = 2;
+        assert!(Wreckfest2.parse(&other, now).is_none());
+        other[4] = 0;
+        other[0] ^= 1;
+        assert!(Wreckfest2.parse(&other, now).is_none());
+        assert!(Wreckfest2.parse(&[0; 16], now).is_none());
+    }
+
+    #[test]
+    fn codemasters_reads_extradata_and_skips_menus() {
+        let now = Instant::now();
+        let mut b = vec![0; codemasters_legacy::PACKET_BYTES];
+        // Wire values are RPM / 10.
+        for (field, value) in [(37, 650.0f32), (63, 780.0), (64, 90.0)] {
+            put(&mut b, field * 4, value);
+        }
+        let t = Codemasters.parse(&b, now).unwrap();
+        assert_eq!(
+            (t.engine.rpm, t.engine.rpm_redline, t.engine.rpm_idle),
+            (6500, 7800, 900)
+        );
+        assert!(Codemasters.parse(&b[..100], now).is_none());
+        put(&mut b, 63 * 4, 0.0);
+        assert!(Codemasters.parse(&b, now).is_none());
     }
 
     fn ams2(rpm: u16, speed: f32, throttle: u8, brake: u8, flags: u8, rps: f32) -> Vec<u8> {

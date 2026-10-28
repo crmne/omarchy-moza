@@ -10,7 +10,7 @@ mod wire;
 
 use haptics::Haptics;
 use moza_rev::{
-    listeners::{self, EngineState, Update},
+    listeners::EngineState,
     moza::{self, Moza},
 };
 use serde::Deserialize;
@@ -21,7 +21,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-use telemetry::Telemetry;
+use telemetry::{Latest, Telemetry};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -258,53 +258,45 @@ fn main() -> io::Result<()> {
         }
         let _ = cmd_tx.send(Command::Quit);
     });
-    let (tx, rx) = mpsc::channel::<Telemetry>();
-    // moza-rev's listeners report engine state only.
-    let (engine_tx, engine_rx) = mpsc::channel::<Update>();
-    {
-        let tx = tx.clone();
-        thread::spawn(move || {
-            for update in engine_rx {
-                if tx.send(update.into()).is_err() {
-                    break;
-                }
-            }
-        });
-    }
+    // One latest-value slot, not a queue: listeners accept unauthenticated
+    // UDP, and the loop below is paced by serial writes, so a flood only
+    // overwrites the sample the next tick reads.
+    let latest = Latest::default();
     let mut failures = Vec::new();
     for (name, ok) in [
         (
             "Wreckfest 2 :23123",
-            listeners::wreckfest_2::spawn(23123, engine_tx.clone()),
+            games::spawn(23123, games::Wreckfest2, latest.clone()),
         ),
         (
             "DiRT / F1 :20777",
-            listeners::codemasters_legacy::spawn(20777, engine_tx.clone()),
+            games::spawn(20777, games::Codemasters, latest.clone()),
         ),
         (
             "AMS2 / PC2 :5606",
-            games::spawn(5606, games::Ams2::default(), tx.clone()),
+            games::spawn(5606, games::Ams2::default(), latest.clone()),
         ),
         (
             "BeamNG :4444",
-            games::spawn(4444, games::BeamNg::default(), tx.clone()),
+            games::spawn(4444, games::BeamNg::default(), latest.clone()),
         ),
-        ("Forza :9999", games::spawn(9999, games::Forza, tx.clone())),
+        (
+            "Forza :9999",
+            games::spawn(9999, games::Forza, latest.clone()),
+        ),
         (
             "ACC / LMU bridge :9998",
-            games::spawn_local(shm::PORT, shm::Shm::default(), tx.clone()),
+            games::spawn_local(shm::PORT, shm::Shm::default(), latest.clone()),
         ),
         (
             "Assetto Corsa :9997",
-            assetto_corsa::spawn(9997, tx.clone()),
+            assetto_corsa::spawn(9997, latest.clone()),
         ),
     ] {
         if !ok {
             failures.push(name);
         }
     }
-    drop(tx);
-    drop(engine_tx);
     let mut config = Config::default();
     let mut haptic_config = haptics::Config::default();
     let mut haptics = Haptics::default();
@@ -411,8 +403,7 @@ fn main() -> io::Result<()> {
                 }
             }
         }
-        // Keep the freshest packet if a settings burst briefly got ahead.
-        for update in rx.try_iter().take(4096) {
+        if let Some(update) = latest.take() {
             last = Some(update);
             packet = Instant::now();
         }

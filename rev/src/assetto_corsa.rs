@@ -1,9 +1,9 @@
 //! Exact AC telemetry from the companion CSP app, never an observed RPM peak.
 //! Version 2 adds what pedal haptics need; version 1 carries the engine only.
-use crate::telemetry::{Telemetry, Wheels};
+use crate::telemetry::{Latest, Telemetry, Wheels};
 use moza_rev::listeners::{EngineState, GameId};
 use serde::Deserialize;
-use std::{io, net::UdpSocket, sync::mpsc, thread};
+use std::{io, net::UdpSocket, thread};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -63,7 +63,7 @@ fn parse(bytes: &[u8]) -> Option<Telemetry> {
     })
 }
 
-pub fn spawn(port: u16, tx: mpsc::Sender<Telemetry>) -> bool {
+pub fn spawn(port: u16, latest: Latest) -> bool {
     let Ok(socket) = UdpSocket::bind(("127.0.0.1", port)) else {
         return false;
     };
@@ -77,10 +77,8 @@ pub fn spawn(port: u16, tx: mpsc::Sender<Telemetry>) -> bool {
                     Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
                     Err(_) => break,
                 };
-                if let Some(telemetry) = parse(&buffer[..n])
-                    && tx.send(telemetry).is_err()
-                {
-                    break;
+                if let Some(telemetry) = parse(&buffer[..n]) {
+                    latest.store(telemetry);
                 }
             }
         })
@@ -132,6 +130,37 @@ mod tests {
         ] {
             assert!(parse(bytes).is_none());
         }
+    }
+
+    #[test]
+    fn a_flood_of_packets_retains_only_the_newest() {
+        let port = UdpSocket::bind(("127.0.0.1", 0))
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let latest = Latest::default();
+        assert!(spawn(port, latest.clone()));
+        let sender = UdpSocket::bind(("127.0.0.1", 0)).unwrap();
+        // Nothing takes from the slot while the flood arrives.
+        for rpm in 1..=20_000 {
+            let _ = sender.send_to(&packet(rpm, 30_000, 100), ("127.0.0.1", port));
+        }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            // A full socket buffer may drop packets, so repeat the final one.
+            // The slot holds one sample however many packets arrived, so it
+            // eventually holds exactly the final packet.
+            let _ = sender.send_to(&packet(29_999, 30_000, 100), ("127.0.0.1", port));
+            thread::sleep(std::time::Duration::from_millis(5));
+            if latest.take().map(|t| t.engine.rpm) == Some(29_999) {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline, "final packet lost");
+        }
+        // Only a repeat of the final packet can still arrive.
+        thread::sleep(std::time::Duration::from_millis(20));
+        assert!(latest.take().is_none_or(|t| t.engine.rpm == 29_999));
     }
 
     #[test]

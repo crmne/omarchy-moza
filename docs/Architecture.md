@@ -14,17 +14,22 @@ cross to QML. The rev preview uses the same lightweight path with Rust status
 at 50 Hz, keeping the shift flash visible. Settings/layout scans remain at
 10 Hz (1 Hz when closed), and the fast timer stops when the panel closes.
 
-The Rust executable in rev/ reuses moza-rev's listeners and protocol client.
-Packets, RPM mapping, heartbeat, reconnection and LED writes remain in Rust.
-JSON carries status, configuration and Boxflat settings frames. Output queues
-are bounded and nonblocking so UI backpressure does not delay LED updates.
-Settings work is limited per loop; queued telemetry uses the newest sample.
+The Rust executable in rev/ reuses moza-rev's packet parsers and protocol
+client. Packets, RPM mapping, heartbeat, reconnection and LED writes remain in
+Rust. JSON carries status, configuration and Boxflat settings frames. Output
+queues are bounded and nonblocking so UI backpressure does not delay LED
+updates. Settings work is limited per loop. Telemetry is not queued: every
+listener overwrites one latest-value slot (`Latest` in `rev/src/telemetry.rs`)
+that the loop takes each tick. The UDP ports accept packets from any sender,
+including other local users, and the loop is paced by serial writes, so a
+flood of packets replaces one sample instead of growing memory.
 Closing stdin stops the engine and clears the lights.
 
 The same loop drives the pedal haptic module (`rev/src/haptics.rs`) on its own
 USB serial port, found by its 346e:002f ID. Every listener produces one
-`Telemetry` record: moza-rev's listeners (Wreckfest 2, Codemasters) fill only
-the engine; `rev/src/games.rs` (AMS2, Forza, BeamNG) and the AC listener add gear,
+`Telemetry` record. Wreckfest 2 and Codemasters, read with moza-rev's parsers
+in `rev/src/games.rs`, fill only the engine; AMS2, Forza, BeamNG, the ACC / LMU
+bridge and the AC listener add gear,
 speed, pedal inputs, ABS/TC activity, wheel slip and suspension travel. Each
 tick computes the wanted state of all 27 pedal slots and writes only changes
 and keep-alive resends, stops first, at most 12 frames per tick. Rust owns the
