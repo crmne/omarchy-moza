@@ -20,7 +20,7 @@ jobs:
     container:
       image: archlinux@sha256:84cd9ef000b3cff245ec028e87965b84724f4bf1cc63fc2741ba927b88515ed6
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install the dated, signed build environment
         run: bash tools/build-env.sh
       - uses: jdx/mr-boxington-action@fba1545410bea5fdd704167667b30d8ef78a8788 # v1
