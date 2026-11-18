@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Install build and Boxflat dependencies
         run: pacman -Syu --noconfirm git rust base-devel qt6-declarative python-gobject gtk4 libadwaita python-cairo python-pyserial python-yaml python-evdev python-psutil xorg-server-xvfb xorg-xauth
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: jdx/mr-boxington-action@fba1545410bea5fdd704167667b30d8ef78a8788 # v1
         with:
           version: 1.24.1
