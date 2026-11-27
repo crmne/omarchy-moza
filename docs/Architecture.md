@@ -20,9 +20,12 @@ Rust. JSON carries status, configuration and Boxflat settings frames. Output
 queues are bounded and nonblocking so UI backpressure does not delay LED
 updates. Settings work is limited per loop. Telemetry is not queued: every
 listener overwrites one latest-value slot (`Latest` in `rev/src/telemetry.rs`)
-that the loop takes each tick. The UDP ports accept packets from any sender,
-including other local users, and the loop is paced by serial writes, so a
-flood of packets replaces one sample instead of growing memory.
+that the loop takes each tick. The UDP ports listen on loopback and accept
+packets from any local sender, including other local users, and the loop is
+paced by serial writes, so a flood of packets replaces one sample instead of
+growing memory. Only `telemetry-from-network: true` in `settings.yml` makes
+the bridge start the engine with `--telemetry-from-network`, which binds the
+game ports (not the AC or ACC / LMU ones) on every interface.
 Closing stdin stops the engine and clears the lights.
 
 The same loop drives the pedal haptic module (`rev/src/haptics.rs`) on its own

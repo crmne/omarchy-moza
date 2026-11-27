@@ -262,31 +262,39 @@ fn main() -> io::Result<()> {
     // UDP, and the loop below is paced by serial writes, so a flood only
     // overwrites the sample the next tick reads.
     let latest = Latest::default();
+    // Loopback unless the user opted in to telemetry from another PC. The AC
+    // companion and the Proton helper always send to loopback.
+    let reach = games::Reach::from_args(std::env::args().skip(1));
     let mut failures = Vec::new();
     for (name, ok) in [
         (
             "Wreckfest 2 :23123",
-            games::spawn(23123, games::Wreckfest2, latest.clone()),
+            games::spawn(23123, reach, games::Wreckfest2, latest.clone()),
         ),
         (
             "DiRT / F1 :20777",
-            games::spawn(20777, games::Codemasters, latest.clone()),
+            games::spawn(20777, reach, games::Codemasters, latest.clone()),
         ),
         (
             "AMS2 / PC2 :5606",
-            games::spawn(5606, games::Ams2::default(), latest.clone()),
+            games::spawn(5606, reach, games::Ams2::default(), latest.clone()),
         ),
         (
             "BeamNG :4444",
-            games::spawn(4444, games::BeamNg::default(), latest.clone()),
+            games::spawn(4444, reach, games::BeamNg::default(), latest.clone()),
         ),
         (
             "Forza :9999",
-            games::spawn(9999, games::Forza, latest.clone()),
+            games::spawn(9999, reach, games::Forza, latest.clone()),
         ),
         (
             "ACC / LMU bridge :9998",
-            games::spawn_local(shm::PORT, shm::Shm::default(), latest.clone()),
+            games::spawn(
+                shm::PORT,
+                games::Reach::Local,
+                shm::Shm::default(),
+                latest.clone(),
+            ),
         ),
         (
             "Assetto Corsa :9997",

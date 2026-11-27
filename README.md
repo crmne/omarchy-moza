@@ -127,6 +127,21 @@ UDP and **frequency 1**. Linux can also need the broadcast-routing setup in
 [moza-rev's documentation](https://github.com/francisdb/moza-rev).
 Occupied telemetry ports are reported in the rev-light page.
 
+The telemetry ports listen on `127.0.0.1` only, so games on this computer
+reach them and other hosts on the network do not. To drive the wheel from a
+game running on another PC, add this line to
+`~/.config/omarchy-moza/settings.yml`, then disable and re-enable the plugin:
+
+```yaml
+telemetry-from-network: true
+```
+
+The Wreckfest 2, Codemasters, AMS2 / Project CARS 2, BeamNG and Forza ports
+then listen on every interface. The telemetry has no authentication, so any
+host that can reach these ports can drive the rev lights and pedal vibration.
+Use it only on a network you trust. The Assetto Corsa companion and the ACC /
+Le Mans Ultimate helper always stay on `127.0.0.1`.
+
 Thresholds are percentages of redline. With a 6,800 RPM redline, 80–97% lights
 the first LED at 5,440 RPM and fills the bar at 6,596 RPM.
 

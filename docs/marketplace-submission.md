@@ -36,7 +36,8 @@ is rebuilt twice in a pinned container/toolchain and compared with the committed
 file. GitHub attestations identify the verified binary and build report; release
 publication requires tests and verification. See docs/Binary-provenance.md.
 The bridge shares the wheelbase serial connection with Boxflat settings. Game
-telemetry listeners use local UDP ports.
+telemetry listeners use UDP ports on 127.0.0.1. Listening on every interface,
+for a game on another PC, is an opt-in setting that is off by default.
 
 Boxflat is an unmodified snapshot in vendor/boxflat/ with an upstream commit,
 per-file hashes and CI comparison with the original source. The snapshot

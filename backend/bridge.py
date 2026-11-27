@@ -43,7 +43,10 @@ HAPTIC_FIELDS = dict(enabled=bool, frequency=int, intensity=int, start=int, end=
 
 
 class Rev:
-    def __init__(self, config, simulate=False, haptics=None, on_haptics=None):
+    # Must match NETWORK_FLAG in rev/src/games.rs.
+    NETWORK_FLAG = "--telemetry-from-network"
+
+    def __init__(self, config, simulate=False, haptics=None, on_haptics=None, network=False):
         self.status = dict(connected=False, rpm=0, redline=0, mask=0)
         self.handler = None
         self.config = config
@@ -63,7 +66,9 @@ class Rev:
         if not binary.exists():
             self.status["error"] = "Rev backend is missing. Run make build in the plugin repository."
             return
-        self.process = subprocess.Popen([str(binary)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
+        # Game telemetry stays on loopback unless the user opted in to another PC.
+        command = [str(binary)] + ([self.NETWORK_FLAG] if network is True else [])
+        self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
         self.send(dict(op="configure", config=config))
         self.saved_haptics = haptics or {}
         self.send(dict(op="haptics", config=self.saved_haptics))
@@ -145,7 +150,8 @@ class Bridge:
         self.steam = steam.Setup(helper, home=(os.environ.get("MOZA_STEAM_HOME") or "/nonexistent") if demo else None)
         self.steam_status, self.steam_checked = dict(games=[], steamRunning=False), 0.0
         self.rev = Rev(self.rev_config, demo, saved_haptics if isinstance(saved_haptics, dict) else None,
-                       lambda config: GLib.idle_add(self.save_haptics, config))
+                       lambda config: GLib.idle_add(self.save_haptics, config),
+                       network=self.settings.read_setting("telemetry-from-network") is True)
         self.last_rev = dict(self.rev.status)
         self.cm = connection_manager.MozaConnectionManager(str(BOXFLAT/"data/serial.yml"), demo)
         self.hid = HidHandler()

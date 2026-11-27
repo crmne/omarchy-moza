@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from backend.bridge import Bridge
+from backend.bridge import Bridge, Rev
 from gi.repository import Gtk, Adw, GLib
 
 
@@ -52,6 +52,15 @@ class BridgeTests(unittest.TestCase):
         row = next(r for r in self.rows('Presets') if r['kind'] == 'group')
         self.assertEqual(len(row['rows']), 10)
         self.assertTrue(all(r['kind'] == 'switch' for r in row['rows']))
+
+    def test_game_telemetry_from_other_computers_is_opt_in(self):
+        for network, expected in [(False, []), ("true", []), (1, []), (True, [Rev.NETWORK_FLAG])]:
+            with patch("backend.bridge.subprocess.Popen") as popen:
+                popen.return_value.stdout = io.StringIO("")
+                Rev(dict(start=80, full=97, leds=10, enabled=True), network=network)
+            self.assertEqual(popen.call_args.args[0][1:], expected, network)
+        source = (Path(__file__).resolve().parents[1] / "rev/src/games.rs").read_text()
+        self.assertIn(f'NETWORK_FLAG: &str = "{Rev.NETWORK_FLAG}"', source)
 
     def test_invalid_rev_configuration_is_rejected(self):
         for value in [{}, dict(start=97,full=80,leds=10,enabled=True), dict(start=80,full=97,leds=0,enabled=True), dict(start=80.5,full=97,leds=10,enabled=True)]:

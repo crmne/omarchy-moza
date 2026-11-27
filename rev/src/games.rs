@@ -1,7 +1,8 @@
 //! UDP game listeners. Automobilista 2 / Project CARS 2, Forza and BeamNG
 //! carry more than the engine; Wreckfest 2 and the Codemasters titles use
 //! moza-rev's packet parsers. Every listener stores into one latest-value
-//! slot, never a queue, so a flood of packets cannot grow memory.
+//! slot, never a queue, so a flood of packets cannot grow memory. They
+//! listen on loopback unless the user opts in to telemetry from another PC.
 use crate::telemetry::{Latest, Telemetry, Wheels};
 use moza_rev::{
     codemasters_legacy,
@@ -9,7 +10,8 @@ use moza_rev::{
     madness, wreckfest,
 };
 use std::{
-    net::UdpSocket,
+    io,
+    net::{Ipv4Addr, UdpSocket},
     thread,
     time::{Duration, Instant},
 };
@@ -18,19 +20,42 @@ pub trait Parser: Send + 'static {
     fn parse(&mut self, bytes: &[u8], now: Instant) -> Option<Telemetry>;
 }
 
-pub fn spawn(port: u16, parser: impl Parser, latest: Latest) -> bool {
-    // AMS2 broadcasts, so listen on every address like moza-rev does.
-    listen(("0.0.0.0", port), parser, latest)
+/// Where the game listeners accept telemetry from. Games on this computer
+/// need only loopback; another PC needs every interface, which also lets any
+/// host on the network drive the lights and vibration, so it is opt-in.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Reach {
+    #[default]
+    Local,
+    Network,
 }
 
-/// For senders on this computer only, such as the Proton helper.
-pub fn spawn_local(port: u16, parser: impl Parser, latest: Latest) -> bool {
-    listen(("127.0.0.1", port), parser, latest)
+/// The flag the bridge passes when `telemetry-from-network` is set.
+pub const NETWORK_FLAG: &str = "--telemetry-from-network";
+
+impl Reach {
+    pub fn from_args(args: impl IntoIterator<Item = String>) -> Self {
+        if args.into_iter().any(|arg| arg == NETWORK_FLAG) {
+            Self::Network
+        } else {
+            Self::Local
+        }
+    }
+
+    fn address(self) -> Ipv4Addr {
+        match self {
+            Self::Local => Ipv4Addr::LOCALHOST,
+            Self::Network => Ipv4Addr::UNSPECIFIED,
+        }
+    }
 }
 
-fn listen(address: (&str, u16), mut parser: impl Parser, latest: Latest) -> bool {
-    let port = address.1;
-    let Ok(socket) = UdpSocket::bind(address) else {
+pub fn bind(reach: Reach, port: u16) -> io::Result<UdpSocket> {
+    UdpSocket::bind((reach.address(), port))
+}
+
+pub fn spawn(port: u16, reach: Reach, mut parser: impl Parser, latest: Latest) -> bool {
+    let Ok(socket) = bind(reach, port) else {
         return false;
     };
     thread::Builder::new()
@@ -289,6 +314,23 @@ impl Parser for BeamNg {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn listeners_accept_only_this_computer_unless_network_is_enabled() {
+        let default = Reach::from_args(Vec::new());
+        assert_eq!(default, Reach::Local);
+        let local = bind(default, 0).unwrap().local_addr().unwrap();
+        assert!(local.ip().is_loopback(), "{local}");
+        let network = Reach::from_args([NETWORK_FLAG.to_string()]);
+        assert_eq!(network, Reach::Network);
+        let any = bind(network, 0).unwrap().local_addr().unwrap();
+        assert!(any.ip().is_unspecified(), "{any}");
+        assert_eq!(
+            Reach::from_args(["--other".to_string()]),
+            Reach::Local,
+            "only the exact flag opens the listeners"
+        );
+    }
 
     fn put(b: &mut [u8], offset: usize, value: f32) {
         b[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
