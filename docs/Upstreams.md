@@ -10,6 +10,8 @@ no parallel implementation of Boxflat's device settings to keep in sync.
 SHA in `vendor/boxflat.lock.json`. The lock also records every file's SHA-256.
 The snapshot includes the original license, README, protocol documentation,
 Python package, data and device-access rules. Our adapter lives in `backend/`.
+Setup installs the plugin's own rules from `udev/` instead of Boxflat's, which
+make MOZA serial devices writable by every local user.
 
 The initial pin is `d14ed0ed84ee2205d41df0f595af5f1709db7831`. To verify it:
 

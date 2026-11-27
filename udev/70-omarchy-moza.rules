@@ -1,0 +1,7 @@
+# MOZA (Gudsen) serial devices and uinput, for the user at the seat only.
+# systemd's 73-seat-late.rules applies uaccess, so this file sorts before it.
+# Nothing here changes the device mode: other local users get no access.
+SUBSYSTEM=="tty", KERNEL=="ttyACM*", ATTRS{idVendor}=="346e", TAG+="uaccess"
+
+# Virtual joysticks for Boxflat's generic devices.
+SUBSYSTEM=="misc", KERNEL=="uinput", OPTIONS+="static_node=uinput", TAG+="uaccess"

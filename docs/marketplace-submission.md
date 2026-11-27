@@ -26,8 +26,12 @@ bundled binary. A standard-library-only launcher detects missing Python
 GTK/Adwaita, serial, YAML, evdev and psutil dependencies and device-access rules.
 The native setup panel offers an explicit button to open an Omarchy terminal
 for package installation and sudo device-rule installation. No privileged work
-runs automatically. Existing rules are preserved, and devices need reconnecting
-after new rules are installed. Standalone Boxflat/moza-rev must be stopped so
+runs automatically. The plugin's own rule, `udev/70-omarchy-moza.rules`, grants
+MOZA serial devices to the user at the seat with `TAG+="uaccess"`, never a
+world-writable mode. A `99-boxflat.rules` that sets a world-writable mode,
+such as Boxflat's original, is overridden in /etc/udev/rules.d. Other existing
+rules are preserved, and devices need reconnecting after new rules are
+installed. Standalone Boxflat/moza-rev must be stopped so
 they do not compete for serial replies or telemetry ports.
 
 The repository includes an x86-64 Linux Rust binary, its SHA-256 checksum,

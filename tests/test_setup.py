@@ -29,11 +29,48 @@ class SetupTests(unittest.TestCase):
 
     def test_installer_uses_only_missing_packages_and_preserves_rules(self):
         state = dict(packages=["python-yaml"], rules=True, binary=False)
-        with patch.object(setup, "probe", return_value=state), patch.object(setup.subprocess, "run") as run:
+        with tempfile.TemporaryDirectory() as directory, patch.object(setup, "RULE_DIRS", [Path(directory)]), \
+                patch.object(setup, "probe", return_value=state), patch.object(setup.subprocess, "run") as run:
             setup.install()
         self.assertEqual(run.call_args_list[0].args[0], ["omarchy", "pkg", "add", "python-yaml"])
-        self.assertEqual(run.call_args_list[1].args[0][:4], ["sudo", "cp", "--update=none", "--preserve=mode"])
+        self.assertEqual(run.call_args_list[1].args[0], ["sudo", "cp", "--update=none", "--preserve=mode",
+                         str(setup.ROOT / "udev/70-omarchy-moza.rules"), "/etc/udev/rules.d/70-omarchy-moza.rules"])
         self.assertEqual(run.call_count, 3)
+
+    def test_shipped_rules_grant_the_seat_user_and_never_every_user(self):
+        seat = (setup.ROOT / "udev/70-omarchy-moza.rules").read_text()
+        rules = [line for line in seat.splitlines() if line and not line.startswith("#")]
+        self.assertTrue(rules)
+        self.assertTrue(all('TAG+="uaccess"' in line and "MODE" not in line for line in rules))
+        self.assertIn('ATTRS{idVendor}=="346e"', seat)
+        # systemd applies uaccess in 73-seat-late.rules; later files are too late.
+        self.assertLess(setup.RULES, "73-seat-late.rules")
+        for name in ("70-omarchy-moza.rules", "99-boxflat.rules"):
+            self.assertFalse(setup.world_writable(setup.ROOT / "udev" / name), name)
+        self.assertTrue(setup.world_writable(setup.ROOT / "vendor/boxflat/udev/99-boxflat.rules"))
+
+    def test_world_writable_boxflat_rule_is_replaced_on_existing_installs(self):
+        old = (setup.ROOT / "vendor/boxflat/udev/99-boxflat.rules").read_text()
+        with tempfile.TemporaryDirectory() as etc, tempfile.TemporaryDirectory() as lib:
+            dirs = [Path(etc), Path(lib)]
+            (dirs[0] / "70-omarchy-moza.rules").write_text("")
+            with patch.object(setup, "RULE_DIRS", dirs), patch.object(setup.importlib, "import_module"):
+                self.assertFalse(setup.probe()["rules"])
+                # A package's world-writable rule in /usr/lib needs an override in /etc.
+                (dirs[1] / "99-boxflat.rules").write_text(old)
+                self.assertTrue(setup.probe()["rules"])
+                # The rule an earlier version installed in /etc.
+                (dirs[0] / "99-boxflat.rules").write_text(old)
+                state = setup.probe()
+                self.assertTrue(state["rules"])
+                with patch.object(setup, "probe", return_value=dict(state, binary=False)), \
+                        patch.object(setup.subprocess, "run") as run:
+                    setup.install()
+                self.assertIn(["sudo", "install", "-m", "0644", str(setup.ROOT / "udev/99-boxflat.rules"),
+                               "/etc/udev/rules.d/99-boxflat.rules"], [c.args[0] for c in run.call_args_list])
+                # An administrator's own rule without MODE="0666" is left alone.
+                (dirs[0] / "99-boxflat.rules").write_text('SUBSYSTEM=="tty", ATTRS{idVendor}=="346e", GROUP="uucp", MODE="0660"\n')
+                self.assertFalse(setup.probe()["rules"])
 
     def test_failed_package_install_does_not_modify_rules(self):
         state = dict(packages=["python-yaml"], rules=True, binary=False)

@@ -4,6 +4,7 @@ import importlib
 import json
 import os
 from pathlib import Path
+import re
 import select
 import subprocess
 import sys
@@ -11,7 +12,30 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = {"gi": "python-gobject", "cairo": "python-cairo", "serial": "python-pyserial",
             "yaml": "python-yaml", "evdev": "python-evdev", "psutil": "python-psutil"}
+# In udev's order of precedence: a file in /etc overrides one of the same name.
 RULE_DIRS = (Path("/etc/udev/rules.d"), Path("/usr/lib/udev/rules.d"))
+RULES = "70-omarchy-moza.rules"
+BOXFLAT_RULES = "99-boxflat.rules"
+MODE = re.compile(r'\bMODE\s*:?=\s*"?([0-7]+)')
+
+
+def boxflat_rules():
+    """The Boxflat rule file udev uses, if any."""
+    for directory in RULE_DIRS:
+        path = directory / BOXFLAT_RULES
+        if path.exists() or path.is_symlink():
+            return path
+    return None
+
+
+def world_writable(path):
+    """Whether a rule file sets a device mode that every local user can write."""
+    try:
+        lines = path.read_text(errors="replace").splitlines() if path else []
+    except OSError:
+        return False
+    return any(int(mode, 8) & 0o002 for line in lines if not line.lstrip().startswith("#")
+               for mode in MODE.findall(line))
 
 
 def probe():
@@ -28,7 +52,10 @@ def probe():
             importlib.import_module("gi.repository." + namespace)
         except (ImportError, ValueError, OSError):
             missing.append(package)
-    rules = not any((directory / "99-boxflat.rules").is_file() for directory in RULE_DIRS)
+    # Boxflat's own rule made MOZA serial devices writable by every user; it
+    # is replaced, and access goes to the user at the seat instead.
+    rules = not any((directory / RULES).is_file() for directory in RULE_DIRS) \
+        or world_writable(boxflat_rules())
     binary = ROOT / "bin" / ("omarchy-moza" if os.uname().machine == "x86_64" else "omarchy-moza-" + os.uname().machine)
     return {"packages": missing, "rules": rules, "binary": not binary.is_file()}
 
@@ -41,10 +68,13 @@ def install():
     if state["packages"]:
         subprocess.run(["omarchy", "pkg", "add", *state["packages"]], check=True)
     if state["rules"]:
-        # Never replace an existing administrator's rules. Re-check after the sudo prompt.
+        # Never replace an administrator's own rules. Re-check after the sudo prompt.
         subprocess.run(["sudo", "cp", "--update=none", "--preserve=mode",
-                        str(ROOT / "vendor/boxflat/udev/99-boxflat.rules"),
-                        "/etc/udev/rules.d/99-boxflat.rules"], check=True)
+                        str(ROOT / "udev" / RULES), "/etc/udev/rules.d/" + RULES], check=True)
+        if world_writable(boxflat_rules()):
+            # A file in /etc also overrides a package's rule of the same name.
+            subprocess.run(["sudo", "install", "-m", "0644", str(ROOT / "udev" / BOXFLAT_RULES),
+                            "/etc/udev/rules.d/" + BOXFLAT_RULES], check=True)
         subprocess.run(["sudo", "udevadm", "control", "--reload-rules"], check=True)
         print("Reconnect your MOZA wheelbase and peripherals to apply device access.", flush=True)
     print("Setup complete. The plugin will start automatically.", flush=True)

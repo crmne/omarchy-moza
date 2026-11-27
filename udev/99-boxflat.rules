@@ -1,0 +1,3 @@
+# Installed by the Omarchy MOZA plugin in place of Boxflat's rule of this
+# name, which made every MOZA serial device writable by every local user
+# (MODE="0666"). 70-omarchy-moza.rules grants access to the user at the seat.

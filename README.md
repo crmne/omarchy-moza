@@ -69,7 +69,12 @@ On a fresh installation, open the steering-wheel icon and choose **Open setup
 terminal**. It installs only the missing Boxflat dependencies and device-access
 rules through an Omarchy terminal, which may ask for your password. The plugin
 starts automatically afterward. Reconnect your devices if rules were installed.
-Existing rules are preserved. You can retry interrupted setup from the panel.
+The rules in `udev/` give the user at the seat access to MOZA serial devices
+(`TAG+="uaccess"`); other local accounts get none. Boxflat's own
+`99-boxflat.rules` made those devices writable by every user (`MODE="0666"`),
+so setup replaces a rule of that name that does this, including one an earlier
+version of this plugin installed. Other existing rules are preserved. You can
+retry interrupted setup from the panel.
 
 The required Arch packages are `python-gobject`, `gtk4`, `libadwaita`,
 `python-cairo`, `python-pyserial`, `python-yaml`, `python-evdev` and `python-psutil`.
